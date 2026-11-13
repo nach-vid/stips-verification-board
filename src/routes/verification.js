@@ -7,7 +7,8 @@ const { getFirestore } = require('../firebase');
 const {
   extractSessionToken,
   findUserByToken,
-  checkAccountOwnership
+  checkAccountOwnership,
+  createSessionToken
 } = require('../middleware/auth');
 
 const db = getFirestore();
@@ -16,11 +17,6 @@ const db = getFirestore();
 function generateUniqueCode() {
   const randomStr = crypto.randomBytes(3).toString('hex').toUpperCase().substring(0, 5);
   return `STIPS-${randomStr}`;
-}
-
-// Helper to generate a cryptographically secure 256-bit session token
-function generateSecureSessionToken() {
-  return crypto.randomBytes(32).toString('hex');
 }
 
 /**
@@ -242,8 +238,13 @@ router.post('/verify-stips', async (req, res) => {
       displayName = title.replace(/\s*-\s*סטיפס.*/i, '').trim() || identifier;
     }
 
-    // Generate unique cryptographically secure 256-bit session token
-    const sessionToken = generateSecureSessionToken();
+    // Generate JWT session token (survives server restarts - no DB lookup needed)
+    const sessionToken = createSessionToken({
+      id:         identifier,
+      username:   displayName,
+      profilePic: avatar || '',
+      profileUrl: profileUrl
+    });
 
     const userData = {
       id: identifier,
@@ -305,30 +306,29 @@ router.post('/verify-stips', async (req, res) => {
 router.get('/me', async (req, res) => {
   try {
     const token = extractSessionToken(req) || req.query.token;
-
     if (!token) {
-      return res.status(401).json({ success: false, error: 'Unauthorized: No session token provided' });
+      return res.status(401).json({ success: false, error: 'לא מחובר' });
     }
 
+    // JWT is self-contained - no DB lookup needed, works after server restarts
     const user = await findUserByToken(token);
-
     if (!user || !user.verified) {
-      return res.status(401).json({ success: false, error: 'Unauthorized: Session token is invalid or expired' });
+      return res.status(401).json({ success: false, error: 'הסשן לא תקף', expired: true });
     }
 
     return res.json({
       success: true,
       user: {
-        id: user.id,
-        username: user.username,
-        profilePic: user.profilePic || 'https://stips.co.il/images/default-avatar.png',
+        id:         user.id,
+        username:   user.username,
+        profilePic: user.profilePic || '',
         profileUrl: user.profileUrl || `https://stips.co.il/profile/${user.id}`,
-        verified: user.verified
+        verified:   true
       }
     });
   } catch (error) {
     console.error('Error in GET /api/me:', error);
-    return res.status(500).json({ error: 'Server error retrieving current user session' });
+    return res.status(500).json({ error: 'שגיאת שרת' });
   }
 });
 

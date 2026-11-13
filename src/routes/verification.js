@@ -49,28 +49,40 @@ router.post('/generate-code', async (req, res) => {
     }
 
     const identifier = extractProfileIdentifier(stipsUsername);
+    if (!identifier) {
+      return res.status(400).json({ error: 'Could not extract a valid Stips username or ID from the provided input.' });
+    }
+
     const token = extractSessionToken(req);
 
-    // Anti-Hijacking Check: Has this account already been claimed?
-    const { isOwner, isClaimed, user: existingUser } = await checkAccountOwnership(identifier, token);
-    if (isClaimed && !isOwner) {
-      return res.status(403).json({
-        success: false,
-        error: `Account Hijacking Blocked: Stips account "${identifier}" (${existingUser.username || ''}) is already verified and owned by another user. You cannot generate a verification code for an already claimed account.`
-      });
+    // Anti-Hijacking Check (non-fatal – if DB is unavailable skip the check gracefully)
+    try {
+      const { isOwner, isClaimed, user: existingUser } = await checkAccountOwnership(identifier, token);
+      if (isClaimed && !isOwner) {
+        return res.status(403).json({
+          success: false,
+          error: `Account "${identifier}" is already verified and belongs to another user.`
+        });
+      }
+    } catch (ownerCheckErr) {
+      console.warn('[generate-code] Ownership check failed (non-fatal):', ownerCheckErr.message);
     }
 
     const verificationCode = generateUniqueCode();
-    const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes expiration
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
 
-    // Store in Firestore under collection 'pending_verifications'
-    await db.collection('pending_verifications').doc(identifier.toLowerCase()).set({
-      identifier: identifier,
-      originalInput: stipsUsername.trim(),
-      verificationCode: verificationCode,
-      createdAt: new Date().toISOString(),
-      expiresAt: expiresAt.toISOString()
-    });
+    // Store pending verification (non-fatal if DB write fails)
+    try {
+      await db.collection('pending_verifications').doc(identifier.toLowerCase()).set({
+        identifier: identifier,
+        originalInput: stipsUsername.trim(),
+        verificationCode: verificationCode,
+        createdAt: new Date().toISOString(),
+        expiresAt: expiresAt.toISOString()
+      });
+    } catch (dbErr) {
+      console.warn('[generate-code] DB write failed (non-fatal):', dbErr.message);
+    }
 
     const profileUrl = `https://www.stips.co.il/profile/${encodeURIComponent(identifier)}`;
 
@@ -79,11 +91,11 @@ router.post('/generate-code', async (req, res) => {
       identifier: identifier,
       profileUrl: profileUrl,
       verificationCode: verificationCode,
-      instructions: `Please copy "${verificationCode}" and paste it into your Stips profile bio at ${profileUrl}, then click Verify.`
+      instructions: `Copy "${verificationCode}" and paste it into your Stips bio at ${profileUrl}, then click Verify.`
     });
   } catch (error) {
-    console.error('Error generating verification code:', error);
-    return res.status(500).json({ error: 'Failed to generate verification code' });
+    console.error('[generate-code] Unexpected error:', error);
+    return res.status(500).json({ error: 'Failed to generate verification code', detail: error.message });
   }
 });
 
@@ -107,111 +119,111 @@ router.post('/verify-stips', async (req, res) => {
     const code = verificationCode.trim();
     const incomingToken = extractSessionToken(req);
 
-    // Anti-Hijacking Check: Verify ownership
-    const { isOwner, isClaimed } = await checkAccountOwnership(identifier, incomingToken);
-    if (isClaimed && !isOwner) {
-      return res.status(403).json({
-        success: false,
-        error: `Account Hijacking Blocked: Stips account "${identifier}" is already claimed. You do not possess the valid session token for this account.`
-      });
-    }
-
-    // Verify against pending code if stored
-    const pendingDoc = await db.collection('pending_verifications').doc(identifier.toLowerCase()).get();
-    if (pendingDoc.exists) {
-      const pendingData = pendingDoc.data();
-      if (pendingData.verificationCode !== code) {
-        return res.status(400).json({
+    // Anti-Hijacking Check: Verify ownership (non-fatal)
+    try {
+      const { isOwner, isClaimed } = await checkAccountOwnership(identifier, incomingToken);
+      if (isClaimed && !isOwner) {
+        return res.status(403).json({
           success: false,
-          error: 'Verification code mismatch. Please use the most recently generated code.'
+          error: `Account "${identifier}" is already claimed. You do not hold the correct session token.`
         });
       }
+    } catch (ownerErr) {
+      console.warn('[verify-stips] Ownership check failed (non-fatal):', ownerErr.message);
+    }
+
+    // Verify against pending code if stored (non-fatal)
+    try {
+      const pendingDoc = await db.collection('pending_verifications').doc(identifier.toLowerCase()).get();
+      if (pendingDoc.exists) {
+        const pendingData = pendingDoc.data();
+        if (pendingData.verificationCode !== code) {
+          return res.status(400).json({
+            success: false,
+            error: 'Verification code mismatch. Please use the most recently generated code.'
+          });
+        }
+      }
+    } catch (pendingErr) {
+      console.warn('[verify-stips] Pending doc check failed (non-fatal):', pendingErr.message);
     }
 
     const profileUrl = `https://www.stips.co.il/profile/${encodeURIComponent(identifier)}`;
-    console.log(`Verifying Stips user: ${identifier} with code: ${code}`);
+    console.log(`[verify-stips] Verifying user: ${identifier} with code: ${code}`);
 
-    let rawHtml = '';
-    let bodyText = '';
     let title = '';
     let avatar = '';
     let codeFound = false;
 
-    // 1. Fetch raw HTML page with standard Axios
-    try {
-      const response = await axios.get(profileUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'he,en;q=0.9',
-          'Cache-Control': 'no-cache'
-        },
-        timeout: 12000
-      });
-
-      rawHtml = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
-      const $ = cheerio.load(rawHtml);
-
-      bodyText = $('body').text();
-      title = $('title').text() || $('meta[property="og:title"]').attr('content') || '';
-      avatar = $('meta[property="og:image"]').attr('content') ||
-               $('.profile-avatar img, .avatar img, img[class*="avatar"]').attr('src') ||
-               '';
-
-      if (avatar && avatar.startsWith('/')) {
-        avatar = `https://www.stips.co.il${avatar}`;
-      }
-
-      if (bodyText.includes(code) || rawHtml.includes(code)) {
-        codeFound = true;
-      }
-    } catch (fetchErr) {
-      console.warn(`Axios GET ${profileUrl} error:`, fetchErr.message);
-    }
-
-    // 2. Direct lightweight HTTP check (pure Axios GET fallback for Stips user data)
-    if (!codeFound && /^\d+$/.test(identifier)) {
+    // --- Strategy 1: Stips internal API (works for numeric user IDs) ---
+    if (/^\d+$/.test(identifier)) {
       try {
-        const statusPayload = JSON.stringify({
-          objType: 'user_profile_page',
-          data: { userid: Number(identifier) }
-        });
-        const userPayload = JSON.stringify({
-          objType: 'user',
-          data: { id: Number(identifier) }
-        });
+        const statusPayload = JSON.stringify({ objType: 'user_profile_page', data: { userid: Number(identifier) } });
+        const userPayload   = JSON.stringify({ objType: 'user',              data: { id:     Number(identifier) } });
+
+        const baseUrl = 'https://stips.co.il/api?name=omniobj&rest_action=GET&omniobj=';
+        const headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'Accept': 'application/json' };
 
         const [statusRes, userRes] = await Promise.all([
-          axios.get(`https://stips.co.il/api?name=omniobj&rest_action=GET&omniobj=${encodeURIComponent(statusPayload)}`, {
-            headers: { 'User-Agent': 'Mozilla/5.0' },
-            timeout: 8000
-          }).catch(() => null),
-          axios.get(`https://stips.co.il/api?name=omniobj&rest_action=GET&omniobj=${encodeURIComponent(userPayload)}`, {
-            headers: { 'User-Agent': 'Mozilla/5.0' },
-            timeout: 8000
-          }).catch(() => null)
+          axios.get(baseUrl + encodeURIComponent(statusPayload), { headers, timeout: 10000 }).catch(e => { console.warn('[verify-stips] status API:', e.message); return null; }),
+          axios.get(baseUrl + encodeURIComponent(userPayload),   { headers, timeout: 10000 }).catch(e => { console.warn('[verify-stips] user API:',   e.message); return null; })
         ]);
 
-        if (statusRes && statusRes.data && statusRes.data.data && statusRes.data.data.omniOmniObj) {
-          const textStatus = statusRes.data.data.omniOmniObj.data?.text_status || '';
-          if (textStatus.includes(code)) {
-            codeFound = true;
-          }
+        if (statusRes && statusRes.data) {
+          const omni = statusRes.data.data?.omniOmniObj;
+          const textStatus = omni?.data?.text_status || omni?.extra?.text_status || '';
+          const rawJson = JSON.stringify(statusRes.data);
+          console.log(`[verify-stips] text_status: "${textStatus}"`);
+          if (textStatus.includes(code) || rawJson.includes(code)) codeFound = true;
         }
 
-        if (userRes && userRes.data && userRes.data.data && userRes.data.data.omniOmniObj) {
-          const userData = userRes.data.data.omniOmniObj.data || {};
-          const extra = userRes.data.data.omniOmniObj.extra || {};
-          if (userData.nickname) {
-            title = userData.nickname;
-          }
-          const photostamp = extra.photostamp || userData.photo_updated_stamp || '';
-          if (userData.has_photo && photostamp) {
-            avatar = `https://stips.co.il/photos/user_profile/l/${identifier}/${photostamp}.jpg`;
+        if (userRes && userRes.data) {
+          const omni = userRes.data.data?.omniOmniObj;
+          if (omni) {
+            const data  = omni.data  || {};
+            const extra = omni.extra || {};
+            if (data.nickname) title = data.nickname;
+            const rawJson = JSON.stringify(userRes.data);
+            if (!codeFound && rawJson.includes(code)) codeFound = true;
+            const photostamp = extra.photostamp || data.photo_updated_stamp || '';
+            if ((data.has_photo || photostamp) && photostamp) {
+              avatar = `https://stips.co.il/photos/user_profile/l/${identifier}/${photostamp}.jpg`;
+            }
           }
         }
       } catch (apiErr) {
-        console.warn('Direct Stips HTTP check warning:', apiErr.message);
+        console.warn('[verify-stips] Stips API check error:', apiErr.message);
+      }
+    }
+
+    // --- Strategy 2: Fallback – raw HTML GET (may contain static meta/og tags) ---
+    if (!codeFound) {
+      try {
+        const response = await axios.get(profileUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+            'Accept': 'text/html,*/*',
+            'Accept-Language': 'he,en;q=0.9'
+          },
+          timeout: 12000
+        });
+        const rawHtml = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
+        const $ = cheerio.load(rawHtml);
+
+        const bodyText  = $('body').text();
+        const metaDesc  = $('meta[name="description"]').attr('content') || '';
+        const ogDesc    = $('meta[property="og:description"]').attr('content') || '';
+        const ogTitle   = $('meta[property="og:title"]').attr('content') || '';
+        const ogImg     = $('meta[property="og:image"]').attr('content') || '';
+
+        if (!title && ogTitle) title = ogTitle;
+        if (!avatar && ogImg)   avatar = ogImg.startsWith('/') ? `https://www.stips.co.il${ogImg}` : ogImg;
+
+        const combined = bodyText + metaDesc + ogDesc + rawHtml;
+        console.log(`[verify-stips] HTML fallback - code in page: ${combined.includes(code)}`);
+        if (combined.includes(code)) codeFound = true;
+      } catch (fetchErr) {
+        console.warn(`[verify-stips] HTML GET failed: ${fetchErr.message}`);
       }
     }
 
@@ -245,10 +257,18 @@ router.post('/verify-stips', async (req, res) => {
     };
 
     // Save user & sessionToken securely in Firestore collection 'users'
-    await db.collection('users').doc(identifier.toLowerCase()).set(userData, { merge: true });
+    try {
+      await db.collection('users').doc(identifier.toLowerCase()).set(userData, { merge: true });
+    } catch (dbErr) {
+      console.warn('[verify-stips] DB user save failed (non-fatal):', dbErr.message);
+    }
 
     // Clean up pending verification
-    await db.collection('pending_verifications').doc(identifier.toLowerCase()).delete();
+    try {
+      await db.collection('pending_verifications').doc(identifier.toLowerCase()).delete();
+    } catch (cleanErr) {
+      console.warn('[verify-stips] Pending cleanup failed (non-fatal):', cleanErr.message);
+    }
 
     // Set secure HTTP-only cookie on the client response
     res.cookie('stips_session_token', sessionToken, {

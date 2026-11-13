@@ -1,124 +1,108 @@
 const express = require('express');
-const router = express.Router();
-const { getFirestore } = require('../firebase');
-const { requireAuth, extractSessionToken, findUserByToken } = require('../middleware/auth');
+const router  = express.Router();
+const fs      = require('fs');
+const path    = require('path');
+const { extractSessionToken, findUserByToken } = require('../middleware/auth');
 
-const db = getFirestore();
+// ── File-based persistence (survives Render restarts) ──────────────────────
+const DATA_FILE = path.join(__dirname, '..', '..', 'data', 'messages.json');
 
-/**
- * Helper to fetch recent messages ordered chronologically
- */
-async function fetchMessages(limitCount = 50) {
-  const snapshot = await db.collection('messages')
-    .orderBy('timestamp', 'asc')
-    .limit(limitCount)
-    .get();
-
-  const messages = [];
-  snapshot.docs.forEach(doc => {
-    messages.push({
-      id: doc.id,
-      ...doc.data()
-    });
-  });
-  return messages;
+function ensureDataDir() {
+  const dir = path.dirname(DATA_FILE);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 }
 
+function readMessages() {
+  try {
+    ensureDataDir();
+    if (!fs.existsSync(DATA_FILE)) return [];
+    const raw = fs.readFileSync(DATA_FILE, 'utf8');
+    return JSON.parse(raw) || [];
+  } catch (e) {
+    console.warn('[messages] readMessages error:', e.message);
+    return [];
+  }
+}
+
+function writeMessages(msgs) {
+  try {
+    ensureDataDir();
+    fs.writeFileSync(DATA_FILE, JSON.stringify(msgs, null, 2), 'utf8');
+  } catch (e) {
+    console.warn('[messages] writeMessages error:', e.message);
+  }
+}
+
+function addMessage(msgData) {
+  const msgs = readMessages();
+  const newMsg = { id: 'msg_' + Date.now(), ...msgData };
+  msgs.push(newMsg);
+  // שמור רק 200 הודעות אחרונות
+  const trimmed = msgs.slice(-200);
+  writeMessages(trimmed);
+  return newMsg;
+}
+
+// ── Routes ─────────────────────────────────────────────────────────────────
+
 /**
- * POST /api/messages
- * Saves and/or fetches chat messages in Firestore collection 'messages'.
- * Security requirement:
- * Posting messages strictly requires a valid cryptographically secure session token!
- * Spoofing is impossible because username & avatar are taken directly from the verified session token.
+ * GET /api/messages – שליפת כל ההודעות
+ */
+router.get('/messages', (req, res) => {
+  try {
+    const messages = readMessages();
+    return res.json({ success: true, messages });
+  } catch (error) {
+    console.error('[messages] GET error:', error);
+    return res.status(500).json({ error: 'שגיאה בטעינת הודעות' });
+  }
+});
+
+/**
+ * POST /api/messages – שליחת הודעה חדשה
  */
 router.post('/messages', async (req, res) => {
   try {
     const { text, action } = req.body;
 
-    // If request is purely to fetch messages via POST
+    // fetch בלבד
     if (action === 'fetch' || (!text && !req.body.username)) {
-      try {
-        const messages = await fetchMessages();
-        return res.json({ success: true, messages });
-      } catch (fetchErr) {
-        console.warn('[messages] fetch failed:', fetchErr.message);
-        return res.json({ success: true, messages: [] });
-      }
+      return res.json({ success: true, messages: readMessages() });
     }
 
-    // Posting a new message: Authenticate caller using session token
+    // אימות טוקן
     const token = extractSessionToken(req);
     if (!token) {
-      return res.status(401).json({
-        error: 'לא מחובר: יש לאמת את פרופיל הסטיפס לפני שליחת הודעות.'
-      });
+      return res.status(401).json({ error: 'לא מחובר', expired: true });
     }
 
-    let verifiedUser = null;
-    try {
-      verifiedUser = await findUserByToken(token);
-    } catch (authErr) {
-      console.warn('[messages] Token lookup failed:', authErr.message);
-    }
-
+    const verifiedUser = await findUserByToken(token);
     if (!verifiedUser || !verifiedUser.verified) {
-      return res.status(403).json({
-        error: 'הסשן פג תוקף או לא תקף. אנא אמת מחדש את פרופיל הסטיפס שלך.',
-        expired: true
-      });
+      return res.status(403).json({ error: 'הסשן לא תקף. אנא אמת מחדש.', expired: true });
     }
 
     if (!text || !text.trim()) {
       return res.status(400).json({ error: 'ההודעה לא יכולה להיות ריקה.' });
     }
 
-    const trimmedText = text.trim();
-
-    const messageData = {
-      userId: verifiedUser.id,
-      username: verifiedUser.username,
+    const newMsg = addMessage({
+      userId:     verifiedUser.id,
+      username:   verifiedUser.username,
       profilePic: verifiedUser.profilePic || '',
-      text: trimmedText,
-      timestamp: new Date().toISOString()
-    };
-
-    let docRef = { id: 'local_' + Date.now() };
-    try {
-      docRef = await db.collection('messages').add(messageData);
-    } catch (dbErr) {
-      console.warn('[messages] DB add failed (non-fatal):', dbErr.message);
-    }
-
-    let messages = [];
-    try {
-      messages = await fetchMessages();
-    } catch (fetchErr) {
-      messages = [{ id: docRef.id, ...messageData }];
-    }
+      text:       text.trim(),
+      timestamp:  new Date().toISOString()
+    });
 
     return res.status(201).json({
-      success: true,
-      messageId: docRef.id,
-      savedMessage: { id: docRef.id, ...messageData },
-      messages: messages
+      success:     true,
+      messageId:   newMsg.id,
+      savedMessage: newMsg,
+      messages:    readMessages()
     });
-  } catch (error) {
-    console.error('[messages] Unexpected error:', error);
-    return res.status(500).json({ error: 'שגיאת שרת בעת שליחת ההודעה. נסה שוב.', detail: error.message });
-  }
-});
 
-/**
- * GET /api/messages
- * Retrieves public messages
- */
-router.get('/messages', async (req, res) => {
-  try {
-    const messages = await fetchMessages();
-    return res.json({ success: true, messages });
   } catch (error) {
-    console.error('Error fetching messages:', error);
-    return res.status(500).json({ error: 'Failed to fetch messages' });
+    console.error('[messages] POST error:', error);
+    return res.status(500).json({ error: 'שגיאת שרת', detail: error.message });
   }
 });
 

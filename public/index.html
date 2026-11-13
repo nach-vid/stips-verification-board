@@ -9,138 +9,268 @@
 
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
-      background: #f7f7f7;
+      background: #f0f0f0;
       color: #222;
       direction: rtl;
-      min-height: 100vh;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
     }
 
+    /* ── Header ── */
     header {
       background: #fff;
-      border-bottom: 1px solid #e0e0e0;
-      padding: 16px 20px;
-      text-align: center;
+      border-bottom: 1px solid #ddd;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
     }
-    header h1 { font-size: 1.3rem; font-weight: 700; }
+    header h1 { font-size: 1.1rem; font-weight: 700; }
 
-    .container { max-width: 600px; margin: 24px auto; padding: 0 14px; }
+    .user-chip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .user-chip img {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1px solid #ddd;
+    }
+    .user-chip span { font-size: 0.85rem; font-weight: 600; }
+    .btn-logout {
+      background: none;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      padding: 4px 10px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      color: #555;
+    }
+    .btn-logout:hover { background: #f5f5f5; }
+
+    /* ── Main layout ── */
+    .page-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      max-width: 640px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    /* ── Verification screens ── */
+    #verification-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 24px 16px;
+      gap: 16px;
+    }
 
     .card {
       background: #fff;
       border: 1px solid #e0e0e0;
       border-radius: 10px;
-      padding: 22px 20px;
-      margin-bottom: 16px;
+      padding: 20px 18px;
     }
-
     .card h2 {
-      font-size: 1rem;
+      font-size: 0.95rem;
       font-weight: 700;
-      color: #333;
       margin-bottom: 14px;
       padding-bottom: 10px;
       border-bottom: 1px solid #eee;
     }
 
-    label {
-      display: block;
-      font-size: 0.85rem;
-      color: #555;
-      margin-bottom: 5px;
-      font-weight: 600;
-    }
+    label { display: block; font-size: 0.82rem; color: #555; margin-bottom: 5px; font-weight: 600; }
 
     input[type="text"] {
       width: 100%;
-      padding: 9px 12px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      font-size: 0.93rem;
-      background: #fafafa;
-      direction: ltr;
-    }
-
-    input[type="text"]:focus {
-      outline: none;
-      border-color: #666;
-      background: #fff;
-    }
-
-    .btn {
-      padding: 9px 18px;
+      padding: 9px 11px;
       border: 1px solid #ccc;
       border-radius: 6px;
       font-size: 0.9rem;
-      font-weight: 600;
-      cursor: pointer;
-      background: #fff;
-      color: #222;
-      transition: background 0.15s;
+      background: #fafafa;
+      direction: ltr;
     }
-    .btn:hover:not(:disabled) { background: #f0f0f0; }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .btn-dark { background: #222; color: #fff; border-color: #222; }
-    .btn-dark:hover:not(:disabled) { background: #444; }
-    .btn-sm { padding: 6px 12px; font-size: 0.82rem; }
+    input[type="text"]:focus { outline: none; border-color: #555; background: #fff; }
 
     .row { display: flex; gap: 8px; align-items: flex-end; margin-top: 10px; }
     .row input { flex: 1; }
 
+    .btn {
+      padding: 9px 16px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: #fff;
+      color: #222;
+    }
+    .btn:hover:not(:disabled) { background: #f5f5f5; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-dark { background: #222; color: #fff; border-color: #222; }
+    .btn-dark:hover:not(:disabled) { background: #333; }
+
     .code-box {
-      background: #f5f5f5;
+      background: #f8f8f8;
       border: 1px dashed #bbb;
       border-radius: 8px;
-      padding: 12px 16px;
+      padding: 12px;
       text-align: center;
       margin: 12px 0;
     }
-    .code-box small { font-size: 0.78rem; color: #888; display: block; margin-bottom: 4px; }
-    .code-box .code { font-size: 1.4rem; font-weight: 800; letter-spacing: 2px; direction: ltr; }
+    .code-box small { font-size: 0.75rem; color: #888; display: block; margin-bottom: 4px; }
+    .code-box .code { font-size: 1.3rem; font-weight: 800; letter-spacing: 2px; direction: ltr; }
 
-    ol.steps { padding-right: 18px; margin: 10px 0; }
-    ol.steps li { font-size: 0.88rem; color: #444; padding: 5px 0; line-height: 1.5; }
+    ol.steps { padding-right: 18px; margin: 10px 0 0; }
+    ol.steps li { font-size: 0.85rem; color: #444; padding: 4px 0; line-height: 1.5; }
 
-    #status-msg { margin-top: 10px; font-size: 0.85rem; min-height: 18px; }
+    #status-msg { margin-top: 10px; font-size: 0.82rem; min-height: 16px; }
     #status-msg.error   { color: #c00; }
     #status-msg.success { color: #2a7a2a; }
 
-    /* user bar */
-    .user-bar { display: flex; align-items: center; gap: 12px; }
-    .user-bar img { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 1px solid #ddd; flex-shrink: 0; }
-    .user-info { flex: 1; }
-    .user-info .name { font-weight: 700; font-size: 0.95rem; }
-    .user-info .uid  { font-size: 0.78rem; color: #888; direction: ltr; }
+    /* ── Chat Board ── */
+    #board-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
 
-    /* messages */
-    .messages-wrap { max-height: 320px; overflow-y: auto; }
+    /* chat messages area */
+    #chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: #f0f0f0;
+    }
 
-    .msg-item { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f0f0f0; align-items: flex-start; }
-    .msg-item:last-child { border-bottom: none; }
-    .msg-item img { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
-    .msg-body .msg-name { font-weight: 700; font-size: 0.85rem; }
-    .msg-body .msg-time { font-size: 0.75rem; color: #aaa; }
-    .msg-body .msg-text { font-size: 0.9rem; margin-top: 2px; }
+    /* bubble */
+    .bubble-wrap {
+      display: flex;
+      align-items: flex-end;
+      gap: 7px;
+      max-width: 80%;
+    }
 
-    .empty-msg { text-align: center; color: #bbb; padding: 20px 0; font-size: 0.88rem; }
+    /* other users – right side (RTL: right = start) */
+    .bubble-wrap.other { align-self: flex-start; flex-direction: row; }
+    /* me – left side */
+    .bubble-wrap.me    { align-self: flex-end; flex-direction: row-reverse; }
 
-    .board-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
-    .board-header h2 { border: none; padding: 0; margin: 0; }
+    .bubble-wrap img {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      object-fit: cover;
+      flex-shrink: 0;
+      margin-bottom: 2px;
+    }
 
-    #message-status { font-size: 0.82rem; color: #888; margin-top: 6px; min-height: 16px; }
+    .bubble {
+      padding: 8px 12px;
+      border-radius: 16px;
+      font-size: 0.88rem;
+      line-height: 1.4;
+      max-width: 100%;
+      word-break: break-word;
+    }
+
+    .bubble-wrap.other .bubble {
+      background: #fff;
+      border-bottom-right-radius: 4px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+    }
+
+    .bubble-wrap.me .bubble {
+      background: #222;
+      color: #fff;
+      border-bottom-left-radius: 4px;
+    }
+
+    .bubble .bname { font-size: 0.72rem; font-weight: 700; color: #666; margin-bottom: 2px; }
+    .bubble-wrap.me .bubble .bname { color: #aaa; }
+    .bubble .btime { font-size: 0.68rem; color: #aaa; margin-top: 3px; direction: ltr; }
+    .bubble-wrap.me .bubble .btime { color: #888; }
+
+    .empty-chat {
+      text-align: center;
+      color: #bbb;
+      font-size: 0.85rem;
+      margin: auto;
+    }
+
+    /* ── Chat input bar ── */
+    .chat-input-bar {
+      background: #fff;
+      border-top: 1px solid #ddd;
+      padding: 10px 12px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+    .chat-input-bar input {
+      flex: 1;
+      padding: 9px 12px;
+      border: 1px solid #ccc;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      background: #fafafa;
+      direction: rtl;
+    }
+    .chat-input-bar input:focus { outline: none; border-color: #555; background: #fff; }
+
+    .btn-send {
+      background: #222;
+      color: #fff;
+      border: none;
+      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      font-size: 1rem;
+      cursor: pointer;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .btn-send:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    #message-status { font-size: 0.75rem; color: #888; padding: 2px 12px; min-height: 14px; background: #fff; }
 
     @media (max-width: 480px) {
       .row { flex-direction: column; }
       .row .btn { width: 100%; }
+      .bubble-wrap { max-width: 90%; }
     }
   </style>
 </head>
 <body>
 
-<header>
-  <h1>לוח הודעות סטיפס</h1>
+<!-- Header (shown when logged in) -->
+<header id="app-header" hidden>
+  <h1>💬 לוח הודעות סטיפס</h1>
+  <div class="user-chip">
+    <img id="header-avatar" src="" alt="פרופיל">
+    <span id="header-name"></span>
+    <button class="btn-logout" id="logout-btn">התנתק</button>
+  </div>
 </header>
 
-<div class="container">
+<div class="page-wrap">
 
   <!-- אימות -->
   <section id="verification-section">
@@ -158,61 +288,32 @@
     </div>
 
     <div class="card" id="code-section" hidden>
-      <h2>הדבק את הקוד בביו שלך בסטיפס</h2>
-
+      <h2>הדבק את הקוד בביו שלך</h2>
       <div class="code-box">
-        <small>העתק את הקוד הזה:</small>
+        <small>העתק את הקוד הזה לסטיפס:</small>
         <div class="code" id="display-code"></div>
       </div>
-
       <ol class="steps">
         <li>כנס לפרופיל שלך: <a id="stips-profile-link" href="#" target="_blank">פתח בסטיפס</a></li>
         <li>הדבק את הקוד בתיאור / ביו שלך ושמור.</li>
-        <li>חזור לכאן ולחץ "אמת".</li>
+        <li>חזור לכאן ולחץ אמת.</li>
       </ol>
-
       <div style="margin-top:14px;">
         <button type="button" id="verify-btn" class="btn btn-dark">אמת פרופיל</button>
       </div>
     </div>
   </section>
 
-  <!-- לוח הודעות -->
+  <!-- לוח הודעות / צ'אט -->
   <section id="board-section" hidden>
-
-    <div class="card">
-      <div class="user-bar">
-        <img id="logged-user-avatar" src="" alt="פרופיל">
-        <div class="user-info">
-          <div class="name" id="logged-user-name"></div>
-          <div class="uid"  id="logged-user-bio"></div>
-        </div>
-        <button type="button" id="logout-btn" class="btn btn-sm">התנתק</button>
-      </div>
+    <div id="chat-messages">
+      <div class="empty-chat" id="empty-msg">טוען הודעות...</div>
     </div>
-
-    <div class="card">
-      <div class="board-header">
-        <h2>הודעות</h2>
-        <button type="button" id="refresh-messages-btn" class="btn btn-sm">רענן</button>
-      </div>
-
-      <div class="messages-wrap">
-        <div id="messages-list"></div>
-      </div>
-
-      <hr style="margin:14px 0; border:none; border-top:1px solid #eee;">
-
-      <form id="message-form">
-        <label for="message-input">כתוב הודעה</label>
-        <div class="row">
-          <input type="text" id="message-input" placeholder="מה אתה רוצה לכתוב?" required autocomplete="off">
-          <button type="submit" id="send-btn" class="btn btn-dark">שלח</button>
-        </div>
-      </form>
-      <div id="message-status"></div>
-    </div>
-
+    <div id="message-status"></div>
+    <form class="chat-input-bar" id="message-form">
+      <input type="text" id="message-input" placeholder="כתוב הודעה..." required autocomplete="off">
+      <button type="submit" id="send-btn" class="btn-send">➤</button>
+    </form>
   </section>
 
 </div>

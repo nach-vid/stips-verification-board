@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Stips Verification &amp; Message Board</title>
+</head>
+<body>
+
+  <h1>Stips Verification &amp; Message Board</h1>
+  <hr>
+
+  <!-- Verification Section -->
+  <section id="verification-section">
+    <h2>Stips Profile Verification</h2>
+    <p>Enter your Stips profile ID or full profile URL (for example: <strong>428498</strong> or <strong>https://stips.co.il/profile/428498</strong>).</p>
+
+    <form id="generate-code-form">
+      <div>
+        <label for="username-input">Stips Profile ID or URL: </label>
+        <input type="text" id="username-input" name="username" placeholder="428498 or https://stips.co.il/profile/428498" required size="45">
+        <button type="submit" id="generate-btn">Generate Verification Code</button>
+      </div>
+    </form>
+
+    <div id="code-section" hidden>
+      <hr>
+      <h3>Verification Code</h3>
+      <p>Your Code: <strong id="display-code"></strong></p>
+      
+      <h4>Instructions:</h4>
+      <ol>
+        <li>Go to your Stips profile: <a id="stips-profile-link" href="#" target="_blank" rel="noopener noreferrer">Open Stips Profile</a></li>
+        <li>Paste the exact code above into your Stips bio / description.</li>
+        <li>Save changes on Stips.</li>
+        <li>Click the "Verify Profile" button below.</li>
+      </ol>
+
+      <button type="button" id="verify-btn">Verify Stips Profile</button>
+      <p id="verification-status"></p>
+    </div>
+  </section>
+
+  <!-- Message Board Section (Shown upon successful verification) -->
+  <section id="board-section" hidden>
+    <h2>Community Message Board</h2>
+    
+    <div>
+      <p>Verified Stips Account: <strong id="logged-user-name"></strong></p>
+      <img id="logged-user-avatar" src="" alt="Stips Profile Avatar" width="80" height="80">
+      <p id="logged-user-bio"></p>
+      <button type="button" id="logout-btn">Log Out</button>
+    </div>
+
+    <hr>
+
+    <h3>Messages</h3>
+    <button type="button" id="refresh-messages-btn">Refresh Messages</button>
+    <ul id="messages-list"></ul>
+
+    <hr>
+
+    <h3>Send a New Message</h3>
+    <form id="message-form">
+      <div>
+        <label for="message-input">Message: </label>
+        <input type="text" id="message-input" name="message" placeholder="Type your message here..." required size="60">
+        <button type="submit" id="send-btn">Post Message</button>
+      </div>
+    </form>
+    <p id="message-status"></p>
+  </section>
+
+  <script src="app.js"></script>
+</body>
+</html>

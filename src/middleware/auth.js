@@ -1,115 +1,113 @@
+const jwt = require('jsonwebtoken');
 const { getFirestore } = require('../firebase');
 
 const db = getFirestore();
 
+// Secret for signing JWTs - set JWT_SECRET in Render env vars for production
+const JWT_SECRET = process.env.JWT_SECRET || 'stips-local-dev-secret-change-in-prod';
+const JWT_EXPIRES = '30d';
+
 /**
- * Extracts session token from headers, cookies, or body
+ * Create a signed JWT for a verified user
+ */
+function createSessionToken(user) {
+  return jwt.sign(
+    {
+      id:         user.id,
+      username:   user.username,
+      profilePic: user.profilePic || '',
+      profileUrl: user.profileUrl || '',
+      verified:   true
+    },
+    JWT_SECRET,
+    { expiresIn: JWT_EXPIRES }
+  );
+}
+
+/**
+ * Verify a JWT and return the payload, or null if invalid
+ */
+function verifySessionToken(token) {
+  try {
+    return jwt.verify(token, JWT_SECRET);
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
+ * Extract session token from request headers, cookies, or body
  */
 function extractSessionToken(req) {
-  // 1. Authorization header: Bearer <token>
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
     return req.headers.authorization.substring(7).trim();
   }
-
-  // 2. Cookie parser parsed cookies
   if (req.cookies && req.cookies.stips_session_token) {
     return req.cookies.stips_session_token.trim();
   }
-
-  // 3. Raw Cookie header fallback parsing
   if (req.headers.cookie) {
     const match = req.headers.cookie.match(/(?:^|;\s*)stips_session_token=([^;]+)/);
-    if (match) {
-      return decodeURIComponent(match[1]).trim();
-    }
+    if (match) return decodeURIComponent(match[1]).trim();
   }
-
-  // 4. Request body or query
-  if (req.body && req.body.sessionToken) {
-    return req.body.sessionToken.trim();
-  }
-  if (req.query && req.query.sessionToken) {
-    return req.query.sessionToken.trim();
-  }
-
+  if (req.body && req.body.sessionToken) return req.body.sessionToken.trim();
+  if (req.query && req.query.sessionToken) return req.query.sessionToken.trim();
   return null;
 }
 
 /**
- * Finds user in Firestore by their secret session token
+ * Find user by JWT token (no DB lookup needed)
  */
 async function findUserByToken(token) {
   if (!token) return null;
-
-  const snapshot = await db.collection('users')
-    .where('sessionToken', '==', token)
-    .limit(1)
-    .get();
-
-  if (snapshot.empty) return null;
-  const doc = snapshot.docs[0];
-  return { id: doc.id, ...doc.data() };
+  const payload = verifySessionToken(token);
+  if (!payload || !payload.verified) return null;
+  return payload; // { id, username, profilePic, profileUrl, verified }
 }
 
 /**
- * Express middleware to enforce authentication for sensitive actions
+ * Express middleware: require valid JWT
  */
 async function requireAuth(req, res, next) {
-  try {
-    const token = extractSessionToken(req);
-
-    if (!token) {
-      return res.status(401).json({
-        error: 'Unauthorized: Missing session token. Please verify your Stips account.'
-      });
-    }
-
-    const user = await findUserByToken(token);
-
-    if (!user || !user.verified) {
-      return res.status(401).json({
-        error: 'Unauthorized: Invalid or expired session token. Please verify your Stips account.'
-      });
-    }
-
-    req.user = user;
-    req.sessionToken = token;
-    next();
-  } catch (err) {
-    console.error('Authentication middleware error:', err);
-    return res.status(500).json({ error: 'Internal authentication error' });
+  const token = extractSessionToken(req);
+  if (!token) {
+    return res.status(401).json({ error: 'לא מחובר: יש לאמת את הפרופיל תחילה.' });
   }
+  const user = verifySessionToken(token);
+  if (!user || !user.verified) {
+    return res.status(401).json({ error: 'הסשן לא תקף. אנא אמת מחדש.', expired: true });
+  }
+  req.user = user;
+  next();
 }
 
 /**
- * Verifies if an existing Stips account is already claimed by someone else.
- * Prevents account hijacking.
+ * Check if a Stips account is already claimed (DB check, non-fatal)
  */
 async function checkAccountOwnership(identifier, token) {
   if (!identifier) return { isOwner: true, isClaimed: false, user: null };
-
-  const userDoc = await db.collection('users').doc(identifier.toLowerCase()).get();
-
-  if (!userDoc.exists) {
+  try {
+    const userDoc = await db.collection('users').doc(identifier.toLowerCase()).get();
+    if (!userDoc.exists) return { isOwner: true, isClaimed: false, user: null };
+    const existingUser = userDoc.data();
+    if (existingUser.verified) {
+      // If caller has a valid JWT for this user ID, they're the owner
+      if (token) {
+        const payload = verifySessionToken(token);
+        if (payload && payload.id === identifier) {
+          return { isOwner: true, isClaimed: true, user: existingUser };
+        }
+      }
+      return { isOwner: false, isClaimed: true, user: existingUser };
+    }
+    return { isOwner: true, isClaimed: false, user: existingUser };
+  } catch (e) {
     return { isOwner: true, isClaimed: false, user: null };
   }
-
-  const existingUser = userDoc.data();
-
-  // If user is verified and has an existing session token
-  if (existingUser.verified && existingUser.sessionToken) {
-    // If the caller provided the exact matching token, they are the verified owner
-    if (token && existingUser.sessionToken === token) {
-      return { isOwner: true, isClaimed: true, user: existingUser };
-    }
-    // Otherwise, someone else is attempting to claim/hijack this verified account
-    return { isOwner: false, isClaimed: true, user: existingUser };
-  }
-
-  return { isOwner: true, isClaimed: false, user: existingUser };
 }
 
 module.exports = {
+  createSessionToken,
+  verifySessionToken,
   extractSessionToken,
   findUserByToken,
   requireAuth,

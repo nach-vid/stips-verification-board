@@ -1,186 +1,152 @@
 document.addEventListener('DOMContentLoaded', function () {
-  // Application State
+  // מצב האפליקציה
   let currentIdentifier = '';
   let currentCode = '';
   let currentSessionToken = localStorage.getItem('stips_session_token') || '';
   let verifiedUser = null;
 
-  // DOM Elements - Verification Section
+  // אלמנטים - אימות
   const verificationSection = document.getElementById('verification-section');
-  const generateForm = document.getElementById('generate-code-form');
-  const usernameInput = document.getElementById('username-input');
-  const generateBtn = document.getElementById('generate-btn');
-  const codeSection = document.getElementById('code-section');
-  const displayCode = document.getElementById('display-code');
-  const stipsProfileLink = document.getElementById('stips-profile-link');
-  const verifyBtn = document.getElementById('verify-btn');
-  const verificationStatus = document.getElementById('verification-status');
+  const generateForm        = document.getElementById('generate-code-form');
+  const usernameInput       = document.getElementById('username-input');
+  const generateBtn         = document.getElementById('generate-btn');
+  const codeSection         = document.getElementById('code-section');
+  const displayCode         = document.getElementById('display-code');
+  const stipsProfileLink    = document.getElementById('stips-profile-link');
+  const verifyBtn           = document.getElementById('verify-btn');
+  const statusMsg           = document.getElementById('status-msg');
 
-  // DOM Elements - Message Board Section
-  const boardSection = document.getElementById('board-section');
-  const loggedUserName = document.getElementById('logged-user-name');
-  const loggedUserAvatar = document.getElementById('logged-user-avatar');
-  const loggedUserBio = document.getElementById('logged-user-bio');
-  const logoutBtn = document.getElementById('logout-btn');
-  const messagesList = document.getElementById('messages-list');
-  const refreshMessagesBtn = document.getElementById('refresh-messages-btn');
-  const messageForm = document.getElementById('message-form');
-  const messageInput = document.getElementById('message-input');
-  const messageStatus = document.getElementById('message-status');
+  // אלמנטים - לוח הודעות
+  const boardSection        = document.getElementById('board-section');
+  const loggedUserName      = document.getElementById('logged-user-name');
+  const loggedUserAvatar    = document.getElementById('logged-user-avatar');
+  const loggedUserBio       = document.getElementById('logged-user-bio');
+  const logoutBtn           = document.getElementById('logout-btn');
+  const messagesList        = document.getElementById('messages-list');
+  const refreshMessagesBtn  = document.getElementById('refresh-messages-btn');
+  const messageForm         = document.getElementById('message-form');
+  const messageInput        = document.getElementById('message-input');
+  const messageStatus       = document.getElementById('message-status');
 
-  // 1. Persistent Login (Auto-Login):
-  // Check if session token exists in localStorage on page load
+  // --- כניסה אוטומטית ---
   async function checkPersistentLogin() {
     if (!currentSessionToken) {
-      // No token stored; ensure verification screen is displayed
-      verificationSection.hidden = false;
-      boardSection.hidden = true;
+      showVerification();
       return;
     }
-
     try {
-      // Validate session token with backend GET /api/me
-      const response = await fetch('/api/me', {
-        method: 'GET',
-        headers: {
-          'Authorization': 'Bearer ' + currentSessionToken
-        }
+      const res = await fetch('/api/me', {
+        headers: { 'Authorization': 'Bearer ' + currentSessionToken }
       });
-
-      const data = await response.json();
-
-      if (response.ok && data.success && data.user) {
-        // Valid session: skip verification and load message board directly
+      const data = await res.json();
+      if (res.ok && data.success && data.user) {
         verifiedUser = data.user;
-        localStorage.setItem('stips_verified_user', JSON.stringify(verifiedUser));
-        switchToBoard(verifiedUser);
+        showBoard(verifiedUser);
       } else {
-        // Token invalid or expired: clear storage and show verification screen
-        clearSessionStorage();
-        verificationSection.hidden = false;
-        boardSection.hidden = true;
+        clearSession();
+        showVerification();
       }
-    } catch (err) {
-      console.warn('Auto-login check failed:', err.message);
-      verificationSection.hidden = false;
-      boardSection.hidden = true;
+    } catch (e) {
+      showVerification();
     }
   }
 
-  // Clear local storage and state
-  function clearSessionStorage() {
+  function clearSession() {
     currentSessionToken = '';
     verifiedUser = null;
     localStorage.removeItem('stips_session_token');
     localStorage.removeItem('stips_verified_user');
   }
 
-  // Switch View to Message Board (skip verification screen)
-  function switchToBoard(user) {
+  function showBoard(user) {
     verificationSection.hidden = true;
     boardSection.hidden = false;
-
-    loggedUserName.textContent = user.username || user.id;
-    loggedUserAvatar.src = user.profilePic || 'https://stips.co.il/images/default-avatar.png';
-    loggedUserBio.textContent = user.id ? 'Stips ID: ' + user.id : '';
-
+    loggedUserName.textContent  = user.username || user.id;
+    loggedUserAvatar.src        = user.profilePic || 'https://stips.co.il/images/default-avatar.png';
+    loggedUserAvatar.onerror    = function() { this.src = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(user.username || 'U') + '&background=667eea&color=fff'; };
+    loggedUserBio.textContent   = 'מזהה סטיפס: ' + (user.id || '');
     loadMessages();
   }
 
-  // Switch View to Verification Screen
-  function switchToVerification() {
+  function showVerification() {
     boardSection.hidden = true;
     verificationSection.hidden = false;
     currentIdentifier = '';
     currentCode = '';
     usernameInput.value = '';
     codeSection.hidden = true;
-    verificationStatus.textContent = '';
+    setStatus('', '');
   }
 
-  // 2. Handle Generate Verification Code
+  function setStatus(msg, type) {
+    statusMsg.textContent = msg;
+    statusMsg.className = type || '';
+  }
+
+  // --- יצירת קוד אימות ---
   generateForm.addEventListener('submit', async function (e) {
     e.preventDefault();
     const inputVal = usernameInput.value.trim();
     if (!inputVal) return;
 
     generateBtn.disabled = true;
-    generateBtn.textContent = 'Generating code...';
-    verificationStatus.textContent = '';
+    generateBtn.textContent = 'יוצר קוד...';
+    setStatus('', '');
 
     try {
       const headers = { 'Content-Type': 'application/json' };
-      if (currentSessionToken) {
-        headers['Authorization'] = 'Bearer ' + currentSessionToken;
-      }
+      if (currentSessionToken) headers['Authorization'] = 'Bearer ' + currentSessionToken;
 
-      const response = await fetch('/api/generate-code', {
+      const res  = await fetch('/api/generate-code', {
         method: 'POST',
-        headers: headers,
-        body: JSON.stringify({
-          stipsUsername: inputVal,
-          sessionToken: currentSessionToken
-        })
+        headers,
+        body: JSON.stringify({ stipsUsername: inputVal })
       });
+      const data = await res.json();
 
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Failed to generate verification code');
-      }
+      if (!res.ok || !data.success) throw new Error(data.error || 'שגיאה ביצירת הקוד');
 
       currentIdentifier = data.identifier || inputVal;
-      currentCode = data.verificationCode;
+      currentCode       = data.verificationCode;
 
-      displayCode.textContent = currentCode;
-      const profileUrl = data.profileUrl || `https://stips.co.il/profile/${encodeURIComponent(currentIdentifier)}`;
-      stipsProfileLink.href = profileUrl;
-      stipsProfileLink.textContent = profileUrl;
+      displayCode.textContent    = currentCode;
+      stipsProfileLink.href      = data.profileUrl || `https://stips.co.il/profile/${encodeURIComponent(currentIdentifier)}`;
+      stipsProfileLink.textContent = 'לחץ לפתיחת הפרופיל שלך';
 
       codeSection.hidden = false;
-      verificationStatus.textContent = `Code generated. Please ensure "${currentCode}" is saved in your Stips bio, then click "Verify Stips Profile".`;
+      setStatus('הקוד נוצר! הדבק אותו בביו שלך בסטיפס ולחץ "אמת פרופיל".', 'success');
     } catch (err) {
-      alert('Error: ' + err.message);
+      setStatus('שגיאה: ' + err.message, 'error');
     } finally {
       generateBtn.disabled = false;
-      generateBtn.textContent = 'Generate Verification Code';
+      generateBtn.textContent = 'קבל קוד';
     }
   });
 
-  // 3. Handle Verify Stips Profile
+  // --- אימות פרופיל ---
   verifyBtn.addEventListener('click', async function () {
     if (!currentIdentifier || !currentCode) {
-      alert('Please enter your Stips Profile ID or URL and generate a code first.');
+      setStatus('אנא הכנס מזהה סטיפס ויצור קוד תחילה.', 'error');
       return;
     }
 
     verifyBtn.disabled = true;
-    verifyBtn.textContent = 'Verifying profile on Stips...';
-    verificationStatus.textContent = `Scanning Stips profile for "${currentCode}"... Please wait.`;
+    verifyBtn.textContent = 'מאמת...';
+    setStatus('בודק את הפרופיל שלך בסטיפס... אנא המתן.', '');
 
     try {
       const headers = { 'Content-Type': 'application/json' };
-      if (currentSessionToken) {
-        headers['Authorization'] = 'Bearer ' + currentSessionToken;
-      }
+      if (currentSessionToken) headers['Authorization'] = 'Bearer ' + currentSessionToken;
 
-      const response = await fetch('/api/verify-stips', {
+      const res  = await fetch('/api/verify-stips', {
         method: 'POST',
-        headers: headers,
-        body: JSON.stringify({
-          stipsUsername: currentIdentifier,
-          verificationCode: currentCode,
-          sessionToken: currentSessionToken
-        })
+        headers,
+        body: JSON.stringify({ stipsUsername: currentIdentifier, verificationCode: currentCode })
       });
+      const data = await res.json();
 
-      const data = await response.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'האימות נכשל');
 
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Verification failed');
-      }
-
-      // Persist the session token in localStorage for auto-login
       if (data.sessionToken) {
         currentSessionToken = data.sessionToken;
         localStorage.setItem('stips_session_token', currentSessionToken);
@@ -189,153 +155,125 @@ document.addEventListener('DOMContentLoaded', function () {
       verifiedUser = data.user;
       localStorage.setItem('stips_verified_user', JSON.stringify(verifiedUser));
 
-      verificationStatus.textContent = 'Verification successful! Session token saved. Transitioning to message board...';
-      setTimeout(function () {
-        switchToBoard(verifiedUser);
-      }, 400);
+      setStatus('האימות הצליח! עובר ללוח ההודעות...', 'success');
+      setTimeout(() => showBoard(verifiedUser), 500);
 
     } catch (err) {
-      verificationStatus.textContent = 'Verification Failed: ' + err.message;
+      setStatus('האימות נכשל: ' + err.message, 'error');
     } finally {
       verifyBtn.disabled = false;
-      verifyBtn.textContent = 'Verify Stips Profile';
+      verifyBtn.textContent = '✅ אמת פרופיל';
     }
   });
 
-  // 4. Handle Logout: clears token from localStorage and returns to verification
+  // --- התנתקות ---
   logoutBtn.addEventListener('click', async function () {
     try {
       await fetch('/api/logout', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + currentSessionToken
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + currentSessionToken },
         body: JSON.stringify({ sessionToken: currentSessionToken })
       });
-    } catch (e) {
-      // Ignore network failures on logout
-    }
-
-    clearSessionStorage();
-    switchToVerification();
+    } catch (e) {}
+    clearSession();
+    showVerification();
   });
 
-  // 5. Fetch and Render Messages
+  // --- טעינת הודעות ---
   async function loadMessages() {
     refreshMessagesBtn.disabled = true;
-    refreshMessagesBtn.textContent = 'Refreshing...';
-    messageStatus.textContent = 'Loading messages...';
+    refreshMessagesBtn.textContent = 'טוען...';
+    messageStatus.textContent = '';
 
     try {
-      const response = await fetch('/api/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'fetch' })
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Failed to fetch messages');
-      }
-
+      const res  = await fetch('/api/messages');
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || 'שגיאה בטעינת הודעות');
       renderMessages(data.messages || []);
-      messageStatus.textContent = '';
     } catch (err) {
-      messageStatus.textContent = 'Error loading messages: ' + err.message;
+      messageStatus.textContent = 'שגיאה בטעינת הודעות: ' + err.message;
     } finally {
       refreshMessagesBtn.disabled = false;
-      refreshMessagesBtn.textContent = 'Refresh Messages';
+      refreshMessagesBtn.textContent = 'רענן';
     }
   }
 
   function renderMessages(messages) {
     messagesList.innerHTML = '';
 
-    if (messages.length === 0) {
-      const emptyItem = document.createElement('li');
-      emptyItem.textContent = 'No messages posted yet. Be the first to write something!';
-      messagesList.appendChild(emptyItem);
+    if (!messages || messages.length === 0) {
+      messagesList.innerHTML = '<div class="empty-msg">עדיין אין הודעות. היה הראשון לכתוב! 🎉</div>';
       return;
     }
 
-    messages.forEach(function (msg) {
-      const li = document.createElement('li');
+    // הצג מהחדש לישן
+    [...messages].reverse().forEach(function (msg) {
+      const item = document.createElement('div');
+      item.className = 'message-item';
 
-      if (msg.profilePic) {
-        const img = document.createElement('img');
-        img.src = msg.profilePic;
-        img.alt = msg.username;
-        img.width = 30;
-        img.height = 30;
-        li.appendChild(img);
-        li.appendChild(document.createTextNode(' '));
-      }
+      const avatarSrc = msg.profilePic || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(msg.username || 'U') + '&background=667eea&color=fff&size=36');
+      const timeStr   = msg.timestamp ? new Date(msg.timestamp).toLocaleString('he-IL') : '';
 
-      const strong = document.createElement('strong');
-      strong.textContent = msg.username;
-      li.appendChild(strong);
+      item.innerHTML = `
+        <img src="${escHtml(avatarSrc)}" alt="${escHtml(msg.username)}" onerror="this.src='https://ui-avatars.com/api/?name=U&background=667eea&color=fff&size=36'">
+        <div class="msg-body">
+          <div class="msg-name">${escHtml(msg.username || 'אנונימי')}</div>
+          <div class="msg-time">${escHtml(timeStr)}</div>
+          <div class="msg-text">${escHtml(msg.text)}</div>
+        </div>`;
 
-      const timeSpan = document.createElement('span');
-      const timeStr = msg.timestamp ? new Date(msg.timestamp).toLocaleString() : '';
-      timeSpan.textContent = ` (${timeStr}): `;
-      li.appendChild(timeSpan);
-
-      const textSpan = document.createElement('span');
-      textSpan.textContent = msg.text;
-      li.appendChild(textSpan);
-
-      messagesList.appendChild(li);
+      messagesList.appendChild(item);
     });
+  }
+
+  function escHtml(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
   refreshMessagesBtn.addEventListener('click', loadMessages);
 
-  // 6. Handle Posting a Message (sends session token)
+  // --- שליחת הודעה ---
   messageForm.addEventListener('submit', async function (e) {
     e.preventDefault();
+
     if (!currentSessionToken || !verifiedUser) {
-      alert('You must be verified with an active session token to post a message.');
+      messageStatus.textContent = 'אין חיבור פעיל. אנא אמת מחדש את הפרופיל שלך.';
       return;
     }
 
-    const text = messageInput.value.trim();
+    const text    = messageInput.value.trim();
     if (!text) return;
 
     const sendBtn = document.getElementById('send-btn');
     sendBtn.disabled = true;
-    sendBtn.textContent = 'Posting...';
-    messageStatus.textContent = 'Sending message...';
+    sendBtn.textContent = 'שולח...';
+    messageStatus.textContent = '';
 
     try {
-      const response = await fetch('/api/messages', {
+      const res  = await fetch('/api/messages', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ' + currentSessionToken
         },
-        body: JSON.stringify({
-          text: text,
-          sessionToken: currentSessionToken
-        })
+        body: JSON.stringify({ text })
       });
 
-      const data = await response.json();
+      const data = await res.json();
 
-      if (response.status === 401 || response.status === 403) {
-        clearSessionStorage();
-        alert('Your session has expired. Please verify your Stips account again.');
-        switchToVerification();
+      // סשן פג תוקף
+      if (res.status === 401 || res.status === 403 || data.expired) {
+        clearSession();
+        showVerification();
+        setStatus('הסשן פג תוקף. אנא אמת שוב את הפרופיל שלך.', 'error');
         return;
       }
 
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Failed to send message');
-      }
+      if (!res.ok || !data.success) throw new Error(data.error || 'שגיאה בשליחת ההודעה');
 
       messageInput.value = '';
-      messageStatus.textContent = 'Message posted successfully.';
+      messageStatus.textContent = '✅ ההודעה נשלחה!';
+      setTimeout(() => { messageStatus.textContent = ''; }, 2000);
 
       if (data.messages) {
         renderMessages(data.messages);
@@ -343,13 +281,13 @@ document.addEventListener('DOMContentLoaded', function () {
         loadMessages();
       }
     } catch (err) {
-      messageStatus.textContent = 'Error sending message: ' + err.message;
+      messageStatus.textContent = 'שגיאה: ' + err.message;
     } finally {
       sendBtn.disabled = false;
-      sendBtn.textContent = 'Post Message';
+      sendBtn.textContent = 'שלח';
     }
   });
 
-  // Run persistent login check immediately on page load
+  // הפעלה
   checkPersistentLogin();
 });

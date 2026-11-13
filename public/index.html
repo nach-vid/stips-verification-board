@@ -9,338 +9,214 @@
 
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
-      background: #f0f2f5;
-      color: #1a1a2e;
+      background: #f7f7f7;
+      color: #222;
       direction: rtl;
       min-height: 100vh;
     }
 
     header {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      padding: 18px 24px;
+      background: #fff;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 16px 20px;
       text-align: center;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
     }
+    header h1 { font-size: 1.3rem; font-weight: 700; }
 
-    header h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: 0.5px; }
-    header p  { font-size: 0.9rem; opacity: 0.85; margin-top: 4px; }
-
-    .container {
-      max-width: 680px;
-      margin: 32px auto;
-      padding: 0 16px;
-    }
+    .container { max-width: 600px; margin: 24px auto; padding: 0 14px; }
 
     .card {
-      background: white;
-      border-radius: 14px;
-      padding: 28px 24px;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
-      margin-bottom: 20px;
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 10px;
+      padding: 22px 20px;
+      margin-bottom: 16px;
     }
 
     .card h2 {
-      font-size: 1.2rem;
-      color: #4a4e69;
-      margin-bottom: 16px;
+      font-size: 1rem;
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 14px;
       padding-bottom: 10px;
-      border-bottom: 2px solid #f0f0f0;
+      border-bottom: 1px solid #eee;
     }
 
     label {
       display: block;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       color: #555;
-      margin-bottom: 6px;
+      margin-bottom: 5px;
       font-weight: 600;
     }
 
     input[type="text"] {
       width: 100%;
-      padding: 11px 14px;
-      border: 1.5px solid #dde1e7;
-      border-radius: 8px;
-      font-size: 0.95rem;
-      transition: border 0.2s;
-      background: #fafbfc;
+      padding: 9px 12px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 0.93rem;
+      background: #fafafa;
       direction: ltr;
     }
 
     input[type="text"]:focus {
       outline: none;
-      border-color: #667eea;
-      background: white;
+      border-color: #666;
+      background: #fff;
     }
 
     .btn {
-      display: inline-block;
-      padding: 10px 22px;
-      border: none;
-      border-radius: 8px;
-      font-size: 0.95rem;
+      padding: 9px 18px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 0.9rem;
       font-weight: 600;
       cursor: pointer;
-      transition: opacity 0.2s, transform 0.1s;
+      background: #fff;
+      color: #222;
+      transition: background 0.15s;
     }
+    .btn:hover:not(:disabled) { background: #f0f0f0; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-dark { background: #222; color: #fff; border-color: #222; }
+    .btn-dark:hover:not(:disabled) { background: #444; }
+    .btn-sm { padding: 6px 12px; font-size: 0.82rem; }
 
-    .btn:active { transform: scale(0.97); }
-    .btn:disabled { opacity: 0.55; cursor: not-allowed; }
-
-    .btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
-    .btn-secondary { background: #f0f2f5; color: #4a4e69; }
-    .btn-danger  { background: #ff6b6b; color: white; font-size: 0.85rem; padding: 7px 14px; }
-    .btn-sm      { padding: 7px 14px; font-size: 0.85rem; }
-
-    .btn-primary:hover:not(:disabled) { opacity: 0.92; }
-
-    .input-row {
-      display: flex;
-      gap: 10px;
-      align-items: flex-end;
-      margin-top: 12px;
-    }
-
-    .input-row input { flex: 1; }
+    .row { display: flex; gap: 8px; align-items: flex-end; margin-top: 10px; }
+    .row input { flex: 1; }
 
     .code-box {
-      background: #f0f4ff;
-      border: 2px dashed #667eea;
-      border-radius: 10px;
-      padding: 14px 18px;
+      background: #f5f5f5;
+      border: 1px dashed #bbb;
+      border-radius: 8px;
+      padding: 12px 16px;
       text-align: center;
-      margin: 14px 0;
+      margin: 12px 0;
     }
+    .code-box small { font-size: 0.78rem; color: #888; display: block; margin-bottom: 4px; }
+    .code-box .code { font-size: 1.4rem; font-weight: 800; letter-spacing: 2px; direction: ltr; }
 
-    .code-box .code-label { font-size: 0.8rem; color: #888; margin-bottom: 4px; }
+    ol.steps { padding-right: 18px; margin: 10px 0; }
+    ol.steps li { font-size: 0.88rem; color: #444; padding: 5px 0; line-height: 1.5; }
 
-    .code-box .code-value {
-      font-size: 1.5rem;
-      font-weight: 800;
-      color: #4a4e69;
-      letter-spacing: 2px;
-      direction: ltr;
-    }
+    #status-msg { margin-top: 10px; font-size: 0.85rem; min-height: 18px; }
+    #status-msg.error   { color: #c00; }
+    #status-msg.success { color: #2a7a2a; }
 
-    .steps-list {
-      padding: 0;
-      list-style: none;
-      counter-reset: steps;
-    }
-
-    .steps-list li {
-      counter-increment: steps;
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      padding: 8px 0;
-      font-size: 0.92rem;
-      color: #444;
-      border-bottom: 1px solid #f5f5f5;
-    }
-
-    .steps-list li:last-child { border-bottom: none; }
-
-    .steps-list li::before {
-      content: counter(steps);
-      min-width: 24px;
-      height: 24px;
-      background: #667eea;
-      color: white;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.75rem;
-      font-weight: 700;
-    }
-
-    #status-msg {
-      margin-top: 12px;
-      font-size: 0.88rem;
-      color: #555;
-      min-height: 20px;
-    }
-
-    #status-msg.error { color: #e55; }
-    #status-msg.success { color: #2e7d32; }
-
-    /* Board */
-    .user-bar {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 16px;
-    }
-
-    .user-bar img {
-      width: 48px;
-      height: 48px;
-      border-radius: 50%;
-      object-fit: cover;
-      border: 2px solid #667eea;
-    }
-
+    /* user bar */
+    .user-bar { display: flex; align-items: center; gap: 12px; }
+    .user-bar img { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 1px solid #ddd; flex-shrink: 0; }
     .user-info { flex: 1; }
-    .user-info .name { font-weight: 700; font-size: 1rem; }
-    .user-info .uid  { font-size: 0.8rem; color: #888; direction: ltr; }
+    .user-info .name { font-weight: 700; font-size: 0.95rem; }
+    .user-info .uid  { font-size: 0.78rem; color: #888; direction: ltr; }
 
-    .messages-wrap {
-      max-height: 340px;
-      overflow-y: auto;
-      padding-left: 4px;
-    }
+    /* messages */
+    .messages-wrap { max-height: 320px; overflow-y: auto; }
 
-    .message-item {
-      display: flex;
-      gap: 10px;
-      padding: 10px 0;
-      border-bottom: 1px solid #f0f0f0;
-      align-items: flex-start;
-    }
+    .msg-item { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f0f0f0; align-items: flex-start; }
+    .msg-item:last-child { border-bottom: none; }
+    .msg-item img { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+    .msg-body .msg-name { font-weight: 700; font-size: 0.85rem; }
+    .msg-body .msg-time { font-size: 0.75rem; color: #aaa; }
+    .msg-body .msg-text { font-size: 0.9rem; margin-top: 2px; }
 
-    .message-item:last-child { border-bottom: none; }
+    .empty-msg { text-align: center; color: #bbb; padding: 20px 0; font-size: 0.88rem; }
 
-    .message-item img {
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      object-fit: cover;
-      flex-shrink: 0;
-    }
+    .board-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .board-header h2 { border: none; padding: 0; margin: 0; }
 
-    .message-item .msg-body { flex: 1; }
-    .message-item .msg-name { font-weight: 700; font-size: 0.88rem; color: #4a4e69; }
-    .message-item .msg-time { font-size: 0.75rem; color: #aaa; }
-    .message-item .msg-text { font-size: 0.93rem; margin-top: 2px; }
-
-    .empty-msg {
-      text-align: center;
-      color: #bbb;
-      padding: 24px 0;
-      font-size: 0.9rem;
-    }
-
-    .send-row {
-      display: flex;
-      gap: 10px;
-      margin-top: 14px;
-    }
-
-    .send-row input { flex: 1; }
-
-    #message-status {
-      font-size: 0.85rem;
-      color: #888;
-      margin-top: 8px;
-      min-height: 18px;
-    }
-
-    .section-actions {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 12px;
-    }
-
-    a { color: #667eea; }
+    #message-status { font-size: 0.82rem; color: #888; margin-top: 6px; min-height: 16px; }
 
     @media (max-width: 480px) {
-      .input-row, .send-row { flex-direction: column; }
-      .input-row .btn, .send-row .btn { width: 100%; }
+      .row { flex-direction: column; }
+      .row .btn { width: 100%; }
     }
   </style>
 </head>
 <body>
 
-  <header>
-    <h1>🗒️ לוח הודעות סטיפס</h1>
-    <p>התחבר עם פרופיל הסטיפס שלך וכתוב הודעות לכולם</p>
-  </header>
+<header>
+  <h1>לוח הודעות סטיפס</h1>
+</header>
 
-  <div class="container">
+<div class="container">
 
-    <!-- אימות פרופיל -->
-    <section id="verification-section">
-      <div class="card">
-        <h2>🔐 אימות פרופיל סטיפס</h2>
+  <!-- אימות -->
+  <section id="verification-section">
+    <div class="card">
+      <h2>התחברות עם פרופיל סטיפס</h2>
+      <form id="generate-code-form">
+        <label for="username-input">מספר ID או קישור לפרופיל בסטיפס</label>
+        <div class="row">
+          <input type="text" id="username-input"
+            placeholder="428498 או https://stips.co.il/profile/428498" required autocomplete="off">
+          <button type="submit" id="generate-btn" class="btn btn-dark">קבל קוד</button>
+        </div>
+      </form>
+      <div id="status-msg"></div>
+    </div>
 
-        <form id="generate-code-form">
-          <label for="username-input">מספר ID או קישור לפרופיל שלך בסטיפס</label>
-          <div class="input-row">
-            <input type="text" id="username-input" name="username"
-              placeholder="לדוגמה: 428498 או https://stips.co.il/profile/428498"
-              required autocomplete="off">
-            <button type="submit" id="generate-btn" class="btn btn-primary">קבל קוד</button>
-          </div>
-        </form>
+    <div class="card" id="code-section" hidden>
+      <h2>הדבק את הקוד בביו שלך בסטיפס</h2>
 
-        <div id="status-msg"></div>
+      <div class="code-box">
+        <small>העתק את הקוד הזה:</small>
+        <div class="code" id="display-code"></div>
       </div>
 
-      <!-- קוד אימות -->
-      <div class="card" id="code-section" hidden>
-        <h2>📋 קוד לאימות</h2>
+      <ol class="steps">
+        <li>כנס לפרופיל שלך: <a id="stips-profile-link" href="#" target="_blank">פתח בסטיפס</a></li>
+        <li>הדבק את הקוד בתיאור / ביו שלך ושמור.</li>
+        <li>חזור לכאן ולחץ "אמת".</li>
+      </ol>
 
-        <div class="code-box">
-          <div class="code-label">העתק את הקוד הזה לביו שלך בסטיפס:</div>
-          <div class="code-value" id="display-code"></div>
-        </div>
-
-        <ol class="steps-list">
-          <li>כנס לפרופיל שלך בסטיפס: <a id="stips-profile-link" href="#" target="_blank" rel="noopener noreferrer">פתח פרופיל סטיפס</a></li>
-          <li>הדבק את הקוד שלמעלה בתיאור / ביו שלך.</li>
-          <li>שמור את השינויים בסטיפס.</li>
-          <li>לחץ על "אמת פרופיל" למטה.</li>
-        </ol>
-
-        <div style="margin-top:16px;">
-          <button type="button" id="verify-btn" class="btn btn-primary">✅ אמת פרופיל</button>
-        </div>
+      <div style="margin-top:14px;">
+        <button type="button" id="verify-btn" class="btn btn-dark">אמת פרופיל</button>
       </div>
-    </section>
+    </div>
+  </section>
 
-    <!-- לוח הודעות -->
-    <section id="board-section" hidden>
+  <!-- לוח הודעות -->
+  <section id="board-section" hidden>
 
-      <div class="card">
-        <div class="user-bar">
-          <img id="logged-user-avatar" src="" alt="תמונת פרופיל">
-          <div class="user-info">
-            <div class="name" id="logged-user-name"></div>
-            <div class="uid" id="logged-user-bio"></div>
-          </div>
-          <button type="button" id="logout-btn" class="btn btn-danger">התנתק</button>
+    <div class="card">
+      <div class="user-bar">
+        <img id="logged-user-avatar" src="" alt="פרופיל">
+        <div class="user-info">
+          <div class="name" id="logged-user-name"></div>
+          <div class="uid"  id="logged-user-bio"></div>
         </div>
+        <button type="button" id="logout-btn" class="btn btn-sm">התנתק</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="board-header">
+        <h2>הודעות</h2>
+        <button type="button" id="refresh-messages-btn" class="btn btn-sm">רענן</button>
       </div>
 
-      <div class="card">
-        <div class="section-actions">
-          <h2 style="border:none; padding:0; margin:0;">💬 הודעות</h2>
-          <button type="button" id="refresh-messages-btn" class="btn btn-secondary btn-sm">רענן</button>
-        </div>
-
-        <div class="messages-wrap">
-          <ul id="messages-list" style="list-style:none; padding:0;"></ul>
-        </div>
-
-        <hr style="margin:16px 0; border:none; border-top:1px solid #eee;">
-
-        <form id="message-form">
-          <label for="message-input">כתוב הודעה חדשה</label>
-          <div class="send-row">
-            <input type="text" id="message-input" name="message"
-              placeholder="מה אתה רוצה לכתוב?" required autocomplete="off">
-            <button type="submit" id="send-btn" class="btn btn-primary">שלח</button>
-          </div>
-        </form>
-        <div id="message-status"></div>
+      <div class="messages-wrap">
+        <div id="messages-list"></div>
       </div>
 
-    </section>
+      <hr style="margin:14px 0; border:none; border-top:1px solid #eee;">
 
-  </div>
+      <form id="message-form">
+        <label for="message-input">כתוב הודעה</label>
+        <div class="row">
+          <input type="text" id="message-input" placeholder="מה אתה רוצה לכתוב?" required autocomplete="off">
+          <button type="submit" id="send-btn" class="btn btn-dark">שלח</button>
+        </div>
+      </form>
+      <div id="message-status"></div>
+    </div>
 
-  <script src="app.js"></script>
+  </section>
+
+</div>
+
+<script src="app.js"></script>
 </body>
 </html>

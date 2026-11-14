@@ -3,9 +3,9 @@ const { getFirestore } = require('../firebase');
 
 const db = getFirestore();
 
-// Secret for signing JWTs - set JWT_SECRET in Render env vars for production
-const JWT_SECRET = process.env.JWT_SECRET || 'stips-local-dev-secret-change-in-prod';
-const JWT_EXPIRES = '30d';
+// Secret for signing JWTs - permanent secret across all updates
+const JWT_SECRET = process.env.JWT_SECRET || 'stips-permanent-session-key-2026-prod-never-change';
+const JWT_EXPIRES = '365d';
 
 /**
  * Create a signed JWT for a verified user

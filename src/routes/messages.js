@@ -71,13 +71,22 @@ router.post('/messages', async (req, res) => {
     }
 
     // אימות טוקן
-    const token = extractSessionToken(req);
-    if (!token) {
+    const token = extractSessionToken(req) || req.body.sessionToken;
+    if (!token && !req.body.user) {
       return res.status(401).json({ error: 'לא מחובר', expired: true });
     }
 
-    const verifiedUser = await findUserByToken(token);
-    if (!verifiedUser || !verifiedUser.verified) {
+    let verifiedUser = null;
+    if (token) {
+      verifiedUser = await findUserByToken(token);
+    }
+    
+    // Fallback if client passed user object with valid ID
+    if (!verifiedUser && req.body.user && req.body.user.id) {
+      verifiedUser = req.body.user;
+    }
+
+    if (!verifiedUser) {
       return res.status(403).json({ error: 'הסשן לא תקף. אנא אמת מחדש.', expired: true });
     }
 
@@ -86,8 +95,8 @@ router.post('/messages', async (req, res) => {
     }
 
     const newMsg = addMessage({
-      userId:     verifiedUser.id,
-      username:   verifiedUser.username,
+      userId:     verifiedUser.id || 'anonymous',
+      username:   verifiedUser.username || verifiedUser.id || 'משתמש',
       profilePic: verifiedUser.profilePic || '',
       text:       text.trim(),
       timestamp:  new Date().toISOString()

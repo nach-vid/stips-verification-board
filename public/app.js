@@ -172,15 +172,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
       const data = await res.json();
 
-      if (res.status === 401 || res.status === 403 || data.expired) {
-        sessionToken = '';
-        currentUser = null;
-        localStorage.removeItem('stips_session_token');
-        localStorage.removeItem('stips_current_user');
-        showLoginView();
-        return;
-      }
-
       if (!res.ok || !data.success) {
         throw new Error(data.error || 'שגיאה בשליחת המסר');
       }
@@ -390,15 +381,10 @@ document.addEventListener('DOMContentLoaded', function () {
         currentUser = data.user;
         localStorage.setItem('stips_current_user', JSON.stringify(currentUser));
         updateHeaderUI();
-      } else if (res.status === 401 || res.status === 403 || data.expired) {
-        sessionToken = '';
-        currentUser = null;
-        localStorage.removeItem('stips_session_token');
-        localStorage.removeItem('stips_current_user');
-        updateHeaderUI();
       }
+      // בשום מקרה לא מנתקים את המשתמש אוטומטית!
     } catch (e) {
-      // שרת מתעורר או שגיאת רשת - לא מנתקים את המשתמש
+      // שרת מתעורר או שגיאת רשת - שומרים על הסשן פעיל תמיד
     }
   }
 

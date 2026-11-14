@@ -1,16 +1,92 @@
 document.addEventListener('DOMContentLoaded', function () {
-  // ─── 1. שחזור מיידי של סשן קיים (Persistent Login) ───
-  let sessionToken = localStorage.getItem('stips_session_token') || '';
-  let currentUser = null;
 
-  try {
-    const savedUser = localStorage.getItem('stips_current_user');
-    if (savedUser) {
-      currentUser = JSON.parse(savedUser);
-    }
-  } catch (e) {
-    currentUser = null;
+  // ─── עזר: אחסון סשן רב-שכבתי (Local, Cookies, Session, JWT Decode) ───
+  function readCookie(name) {
+    try {
+      const match = document.cookie.match(new RegExp('(?:^|;\\s*)' + name + '=([^;]+)'));
+      return match ? decodeURIComponent(match[1]) : '';
+    } catch (e) { return ''; }
   }
+
+  function writeCookie(name, val) {
+    try {
+      document.cookie = name + '=' + encodeURIComponent(val) + '; path=/; max-age=31536000; SameSite=Lax';
+    } catch (e) {}
+  }
+
+  function deleteCookie(name) {
+    try {
+      document.cookie = name + '=; path=/; max-age=0; SameSite=Lax';
+    } catch (e) {}
+  }
+
+  function loadSavedSession() {
+    let token = '';
+    let user = null;
+
+    // 1. קריאת טוקן
+    try { token = localStorage.getItem('stips_session_token') || ''; } catch (e) {}
+    if (!token) token = readCookie('stips_session_token');
+    if (!token) {
+      try { token = sessionStorage.getItem('stips_session_token') || ''; } catch (e) {}
+    }
+
+    // 2. קריאת משתמש
+    try {
+      const uStr = localStorage.getItem('stips_current_user');
+      if (uStr) user = JSON.parse(uStr);
+    } catch (e) {}
+    if (!user) {
+      try {
+        const cStr = readCookie('stips_user');
+        if (cStr) user = JSON.parse(cStr);
+      } catch (e) {}
+    }
+    if (!user) {
+      try {
+        const sStr = sessionStorage.getItem('stips_current_user');
+        if (sStr) user = JSON.parse(sStr);
+      } catch (e) {}
+    }
+
+    // 3. חילוץ משתמש ישירות מחתימת ה-JWT אם האובייקט נמחק
+    if (!user && token && token.includes('.')) {
+      try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonStr = decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+        const decoded = JSON.parse(jsonStr);
+        if (decoded && (decoded.id || decoded.username)) {
+          user = decoded;
+        }
+      } catch (e) {}
+    }
+
+    return { token, user };
+  }
+
+  function saveSession(token, user) {
+    try { localStorage.setItem('stips_session_token', token); } catch (e) {}
+    try { localStorage.setItem('stips_current_user', JSON.stringify(user)); } catch (e) {}
+    try { sessionStorage.setItem('stips_session_token', token); } catch (e) {}
+    try { sessionStorage.setItem('stips_current_user', JSON.stringify(user)); } catch (e) {}
+    writeCookie('stips_session_token', token);
+    writeCookie('stips_user', JSON.stringify(user));
+  }
+
+  function clearAllSession() {
+    try { localStorage.removeItem('stips_session_token'); } catch (e) {}
+    try { localStorage.removeItem('stips_current_user'); } catch (e) {}
+    try { sessionStorage.removeItem('stips_session_token'); } catch (e) {}
+    try { sessionStorage.removeItem('stips_current_user'); } catch (e) {}
+    deleteCookie('stips_session_token');
+    deleteCookie('stips_user');
+  }
+
+  // שחזור מיידי מובטח
+  const initial = loadSavedSession();
+  let sessionToken = initial.token;
+  let currentUser = initial.user;
 
   let currentStipsId = '';
   let currentCode = '';
@@ -87,7 +163,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function updateHeaderUI() {
-    if (currentUser && sessionToken) {
+    if (currentUser) {
       btnLogout.style.display = 'block';
     } else {
       btnLogout.style.display = 'none';
@@ -116,21 +192,21 @@ document.addEventListener('DOMContentLoaded', function () {
 
     sessionToken = '';
     currentUser = null;
-    localStorage.removeItem('stips_session_token');
-    localStorage.removeItem('stips_current_user');
+    clearAllSession();
     updateHeaderUI();
+    loadMessages(); // ריענון להסרת האאוטליין המהבהב
   }
 
   // ─── 3. שליחת הודעות / כניסה למשתמש ───
   bottomBoxWrapper.addEventListener('click', function (e) {
-    if (!currentUser || !sessionToken) {
+    if (!currentUser) {
       e.preventDefault();
       showLoginView();
     }
   });
 
   chatInput.addEventListener('focus', function (e) {
-    if (!currentUser || !sessionToken) {
+    if (!currentUser) {
       e.preventDefault();
       chatInput.blur();
       showLoginView();
@@ -150,7 +226,7 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   async function sendMessage() {
-    if (!currentUser || !sessionToken) {
+    if (!currentUser) {
       showLoginView();
       return;
     }
@@ -167,7 +243,11 @@ document.addEventListener('DOMContentLoaded', function () {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ' + sessionToken
         },
-        body: JSON.stringify({ text })
+        body: JSON.stringify({
+          text: text,
+          sessionToken: sessionToken,
+          user: currentUser
+        })
       });
 
       const data = await res.json();
@@ -191,7 +271,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  // ─── 4. טעינת והצגת הודעות (החדשות למעלה + ימין) ───
+  // ─── 4. טעינת והצגת הודעות (החדשות למעלה + אאוטליין אפור מהבהב) ───
   async function loadMessages() {
     try {
       const res = await fetch('/api/messages');
@@ -200,7 +280,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (data.messages.length > 0) {
           try {
             localStorage.setItem('stips_cached_messages', JSON.stringify(data.messages));
-          } catch(e) {}
+          } catch (e) {}
         }
         renderMessages(data.messages);
       }
@@ -218,13 +298,17 @@ document.addEventListener('DOMContentLoaded', function () {
         renderMessages(parsed);
       }
     }
-  } catch(e) {}
+  } catch (e) {}
 
   function renderMessages(messages) {
     if (!messages || messages.length === 0) {
       messagesFeed.innerHTML = '<div class="empty-state">אין עדיין הודעות בלוח. היה הראשון לפרסם!</div>';
       return;
     }
+
+    // הבהוב אפור (Fade) מסביב לפרופיל רק במידה והמשתמש מחובר
+    const isUserConnected = !!currentUser;
+    const pulseClass = isUserConnected ? 'avatar-fade-pulse' : '';
 
     // הודעות חדשות ביותר למעלה
     const newestFirst = [...messages].reverse();
@@ -234,11 +318,10 @@ document.addEventListener('DOMContentLoaded', function () {
       const name = msg.username || 'משתמש';
       const text = msg.text || '';
 
-      // msg-author-side מופיע ראשון ב-DOM, ולכן ב-RTL הוא בצד ימין מוחלט
       return `
         <div class="msg-card">
           <div class="msg-author-side">
-            <img class="msg-avatar" src="${escapeHtml(avatarSrc)}" alt=""
+            <img class="msg-avatar ${pulseClass}" src="${escapeHtml(avatarSrc)}" alt=""
                  onerror="this.src='https://ui-avatars.com/api/?name=U&background=ffffff&color=111111&size=60'">
             <span class="msg-author">${escapeHtml(name)}</span>
           </div>
@@ -348,9 +431,8 @@ document.addEventListener('DOMContentLoaded', function () {
       sessionToken = data.sessionToken;
       currentUser = data.user;
 
-      // שמירה קבועה בדפדפן - נשאר מחובר תמיד
-      localStorage.setItem('stips_session_token', sessionToken);
-      localStorage.setItem('stips_current_user', JSON.stringify(currentUser));
+      // שמירה רב-שכבתית (Local, Cookie, Session) – לא מתנתק לעולם
+      saveSession(sessionToken, currentUser);
 
       setLoginStatus('אימות הצליח! מעביר לצ\'אט...', 'success');
 
@@ -367,7 +449,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
-  // ─── 7. בדיקת סשן שקטה ברקע (ללא איפוס על שגיאת רשת) ───
+  // ─── 7. בדיקת סשן שקטה ברקע (אינה מנתקת לעולם) ───
   async function verifySessionQuietly() {
     if (!sessionToken) return;
 
@@ -379,12 +461,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
       if (res.ok && data.success && data.user) {
         currentUser = data.user;
-        localStorage.setItem('stips_current_user', JSON.stringify(currentUser));
+        saveSession(sessionToken, currentUser);
         updateHeaderUI();
       }
-      // בשום מקרה לא מנתקים את המשתמש אוטומטית!
     } catch (e) {
-      // שרת מתעורר או שגיאת רשת - שומרים על הסשן פעיל תמיד
+      // לא מנתקים לעולם בשגיאות רשת או בהתעוררות שרת
     }
   }
 

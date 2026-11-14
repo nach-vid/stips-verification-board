@@ -205,13 +205,29 @@ document.addEventListener('DOMContentLoaded', function () {
     try {
       const res = await fetch('/api/messages');
       const data = await res.json();
-      if (res.ok && data.success) {
-        renderMessages(data.messages || []);
+      if (res.ok && data.success && Array.isArray(data.messages)) {
+        if (data.messages.length > 0) {
+          try {
+            localStorage.setItem('stips_cached_messages', JSON.stringify(data.messages));
+          } catch(e) {}
+        }
+        renderMessages(data.messages);
       }
     } catch (e) {
       console.warn('loadMessages error:', e.message);
     }
   }
+
+  // שחזור מיידי מהמטמון בדפדפן אם קיים
+  try {
+    const cached = localStorage.getItem('stips_cached_messages');
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        renderMessages(parsed);
+      }
+    }
+  } catch(e) {}
 
   function renderMessages(messages) {
     if (!messages || messages.length === 0) {

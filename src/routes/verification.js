@@ -24,9 +24,14 @@ function generateUniqueCode() {
  */
 function extractProfileIdentifier(input) {
   if (!input) return '';
-  const trimmed = input.trim();
+  let trimmed = input.trim();
+  // Strip trailing queries, hashes, and slashes
+  trimmed = trimmed.replace(/[?#].*$/, '').replace(/\/+$/, '');
   const match = trimmed.match(/profile\/([a-zA-Z0-9_\u0590-\u05FF]+)/i);
   if (match) return match[1];
+  // Match trailing numeric id if pasted like stips.co.il/123456
+  const numMatch = trimmed.match(/\/(\d+)$/);
+  if (numMatch) return numMatch[1];
   return trimmed;
 }
 

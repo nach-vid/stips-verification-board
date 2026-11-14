@@ -1,13 +1,22 @@
 document.addEventListener('DOMContentLoaded', function () {
-  // מצב אפליקציה
+  // ─── 1. שחזור מיידי של סשן קיים (Persistent Login) ───
   let sessionToken = localStorage.getItem('stips_session_token') || '';
   let currentUser = null;
+
+  try {
+    const savedUser = localStorage.getItem('stips_current_user');
+    if (savedUser) {
+      currentUser = JSON.parse(savedUser);
+    }
+  } catch (e) {
+    currentUser = null;
+  }
+
   let currentStipsId = '';
   let currentCode = '';
   let pollInterval = null;
 
   // אלמנטים - סרגל עליון
-  const barTitle       = document.getElementById('bar-title');
   const userInfoPill   = document.getElementById('user-info-pill');
   const userPillImg    = document.getElementById('user-pill-img');
   const userPillName   = document.getElementById('user-pill-name');
@@ -26,12 +35,14 @@ document.addEventListener('DOMContentLoaded', function () {
   const stipsIdInput        = document.getElementById('stips-id-input');
   const btnSubmitId         = document.getElementById('btn-submit-id');
   const codeStep            = document.getElementById('code-step');
+  const codeBoxClickable    = document.getElementById('code-box-clickable');
   const displayCodeEl       = document.getElementById('display-verification-code');
+  const btnCopyCode         = document.getElementById('btn-copy-code');
   const profileDirectLink   = document.getElementById('profile-direct-link');
   const btnVerifyStips      = document.getElementById('btn-verify-stips');
   const loginStatus         = document.getElementById('login-status');
 
-  // עזר: אווטאר בטוח (עיגול לבן / תמונה)
+  // עזר: אווטאר בטוח
   function getAvatar(user) {
     if (user && user.profilePic && user.profilePic.startsWith('http')) {
       return user.profilePic;
@@ -54,16 +65,14 @@ document.addEventListener('DOMContentLoaded', function () {
     loginStatus.className = 'login-status-msg ' + (type || '');
   }
 
-  // ─── ניווט בין מסך הצ'אט למסך החיבור ───
+  // ─── 2. ניווט בין מסכים ───
   function showChatView() {
     loginScreen.style.display = 'none';
     chatScreen.style.display = 'flex';
-    barTitle.textContent = "צ'אט משתמשים";
 
     updateHeaderAuthUI();
     loadMessages();
 
-    // התחלת סנכרון הודעות כל 6 שניות
     clearInterval(pollInterval);
     pollInterval = setInterval(loadMessages, 6000);
   }
@@ -72,7 +81,6 @@ document.addEventListener('DOMContentLoaded', function () {
     clearInterval(pollInterval);
     chatScreen.style.display = 'none';
     loginScreen.style.display = 'flex';
-    barTitle.textContent = "חיבור לסטיפס";
     btnAuthAction.textContent = "חזרה";
 
     codeStep.style.display = 'none';
@@ -82,7 +90,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function updateHeaderAuthUI() {
-    if (currentUser) {
+    if (currentUser && sessionToken) {
       userInfoPill.style.display = 'flex';
       userPillImg.src = getAvatar(currentUser);
       userPillName.textContent = currentUser.username || currentUser.id;
@@ -93,16 +101,13 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  // לחיצה על כפתור הסרגל העליון (התחבר / התנתק / חזרה)
+  // לחיצה על כפתור הסרגל העליון
   btnAuthAction.addEventListener('click', function () {
     if (loginScreen.style.display === 'flex') {
-      // חזרה לצ'אט
       showChatView();
-    } else if (currentUser) {
-      // התנתקות
+    } else if (currentUser && sessionToken) {
       logout();
     } else {
-      // כניסה למסך חיבור
       showLoginView();
     }
   });
@@ -118,25 +123,15 @@ document.addEventListener('DOMContentLoaded', function () {
         body: JSON.stringify({ sessionToken })
       });
     } catch (e) {}
+
     sessionToken = '';
     currentUser = null;
     localStorage.removeItem('stips_session_token');
+    localStorage.removeItem('stips_current_user');
     updateHeaderAuthUI();
   }
 
-  // ─── התנהגות ה-BOX התחתון לשליחת הודעות ───
-  // אם לא רשום -> מעביר למסך חיבור לסטיפס
-  // אם רשום -> פותח מקלדת ונותן לכתוב ולשלוח
-  function handleInputBoxInteraction(e) {
-    if (!currentUser || !sessionToken) {
-      e.preventDefault();
-      chatInput.blur();
-      showLoginView();
-      return false;
-    }
-    return true;
-  }
-
+  // ─── 3. שליחת הודעות / כניסה למשתמש ───
   bottomBoxWrapper.addEventListener('click', function (e) {
     if (!currentUser || !sessionToken) {
       e.preventDefault();
@@ -152,7 +147,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
-  // תמיכה ב-Enter במקלדת לשליחת הודעה
   chatInput.addEventListener('keydown', function (e) {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -165,9 +159,11 @@ document.addEventListener('DOMContentLoaded', function () {
     sendMessage();
   });
 
-  // ─── שליחת הודעה ───
   async function sendMessage() {
-    if (!handleInputBoxInteraction({ preventDefault: () => {} })) return;
+    if (!currentUser || !sessionToken) {
+      showLoginView();
+      return;
+    }
 
     const text = chatInput.value.trim();
     if (!text) return;
@@ -190,6 +186,7 @@ document.addEventListener('DOMContentLoaded', function () {
         sessionToken = '';
         currentUser = null;
         localStorage.removeItem('stips_session_token');
+        localStorage.removeItem('stips_current_user');
         showLoginView();
         return;
       }
@@ -213,7 +210,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  // ─── טעינת והצגת הודעות (החדשות למעלה!) ───
+  // ─── 4. טעינת והצגת הודעות (תמונה ושם בצד ימין!) ───
   async function loadMessages() {
     try {
       const res = await fetch('/api/messages');
@@ -232,7 +229,7 @@ document.addEventListener('DOMContentLoaded', function () {
       return;
     }
 
-    // ההודעות החדשות ביותר מופיעות למעלה
+    // הודעות חדשות ביותר למעלה
     const newestFirst = [...messages].reverse();
 
     messagesFeed.innerHTML = newestFirst.map(msg => {
@@ -240,18 +237,55 @@ document.addEventListener('DOMContentLoaded', function () {
       const name = msg.username || 'משתמש';
       const text = msg.text || '';
 
+      // msg-author-side הוא הראשון ב-DOM, ולכן ב-RTL מופיע בצד ימין מוחלט
       return `
         <div class="msg-card">
+          <div class="msg-author-side">
+            <img class="msg-avatar" src="${escapeHtml(avatarSrc)}" alt=""
+                 onerror="this.src='https://ui-avatars.com/api/?name=U&background=ffffff&color=111111&size=60'">
+            <span class="msg-author">${escapeHtml(name)}</span>
+          </div>
           <div class="msg-content">${escapeHtml(text)}</div>
-          <div class="msg-author">${escapeHtml(name)}</div>
-          <img class="msg-avatar" src="${escapeHtml(avatarSrc)}" alt=""
-               onerror="this.src='https://ui-avatars.com/api/?name=U&background=ffffff&color=111111&size=60'">
         </div>
       `;
     }).join('');
   }
 
-  // ─── תהליך חיבור לסטיפס ───
+  // ─── 5. חיבור לסטיפס והעתקה קלה ───
+  function copyCodeToClipboard() {
+    if (!currentCode) return;
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(currentCode).then(onCopied).catch(fallbackCopy);
+    } else {
+      fallbackCopy();
+    }
+
+    function fallbackCopy() {
+      const tempInput = document.createElement('input');
+      tempInput.value = currentCode;
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      try {
+        document.execCommand('copy');
+        onCopied();
+      } catch (err) {}
+      document.body.removeChild(tempInput);
+    }
+
+    function onCopied() {
+      btnCopyCode.textContent = "✓ הקוד הועתק ללוח!";
+      btnCopyCode.classList.add('copied');
+      setTimeout(() => {
+        btnCopyCode.textContent = "📋 העתק קוד ללוח";
+        btnCopyCode.classList.remove('copied');
+      }, 2500);
+    }
+  }
+
+  btnCopyCode.addEventListener('click', copyCodeToClipboard);
+  codeBoxClickable.addEventListener('click', copyCodeToClipboard);
+
   loginForm.addEventListener('submit', async function (e) {
     e.preventDefault();
     const idVal = stipsIdInput.value.trim();
@@ -280,7 +314,7 @@ document.addEventListener('DOMContentLoaded', function () {
       profileDirectLink.href = data.profileUrl || `https://stips.co.il/profile/${encodeURIComponent(currentStipsId)}`;
       codeStep.style.display = 'block';
 
-      setLoginStatus('הקוד נוצר. הדבק אותו בביו שלך בסטיפס.', 'success');
+      setLoginStatus('הקוד נוצר. העתק אותו בנגיעה והדבק בביו בסטיפס.', 'success');
     } catch (err) {
       setLoginStatus('שגיאה: ' + err.message, 'error');
     } finally {
@@ -316,11 +350,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
       sessionToken = data.sessionToken;
       currentUser = data.user;
+
+      // שמירה קבועה בדפדפן - לא צריך להתחבר שוב לעולם!
       localStorage.setItem('stips_session_token', sessionToken);
+      localStorage.setItem('stips_current_user', JSON.stringify(currentUser));
 
       setLoginStatus('החיבור הצליח! מעביר לצ\'אט...', 'success');
 
-      // החזרה מיידית לצ'אט ופתיחת תיבת ההקלדה
       setTimeout(() => {
         showChatView();
         chatInput.focus();
@@ -334,29 +370,36 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
-  // ─── בדיקת סשן קיים ברקע ───
-  async function initSession() {
-    if (sessionToken) {
-      try {
-        const res = await fetch('/api/me', {
-          headers: { 'Authorization': 'Bearer ' + sessionToken }
-        });
-        const data = await res.json();
-        if (res.ok && data.success && data.user) {
-          currentUser = data.user;
-          updateHeaderAuthUI();
-        } else {
-          sessionToken = '';
-          localStorage.removeItem('stips_session_token');
-          updateHeaderAuthUI();
-        }
-      } catch (e) {
-        // שגיאת רשת - ממשיכים כרגיל כצופה
+  // ─── 6. אימות סשן שקט ברקע (בלי למחוק במקרה של שגיאת שרת/רשת) ───
+  async function verifySessionQuietly() {
+    if (!sessionToken) return;
+
+    try {
+      const res = await fetch('/api/me', {
+        headers: { 'Authorization': 'Bearer ' + sessionToken }
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success && data.user) {
+        currentUser = data.user;
+        localStorage.setItem('stips_current_user', JSON.stringify(currentUser));
+        updateHeaderAuthUI();
+      } else if (res.status === 401 || res.status === 403 || data.expired) {
+        // רק אם הטוקן פג תוקף באופן מפורש
+        sessionToken = '';
+        currentUser = null;
+        localStorage.removeItem('stips_session_token');
+        localStorage.removeItem('stips_current_user');
+        updateHeaderAuthUI();
       }
+    } catch (e) {
+      // אם יש שגיאת רשת או שהשרת מתעורר - לא מוחקים את ההתחברות!
+      console.log('Server waking up or network slow, keeping session active.');
     }
   }
 
-  // הפעלה ראשונית: הצגת הצ'אט מיד
+  // הפעלה ראשונית
+  updateHeaderAuthUI();
   showChatView();
-  initSession();
+  verifySessionQuietly();
 });

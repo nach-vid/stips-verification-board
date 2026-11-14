@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>סטיפס - צ'אט משתמשים</title>
+  <title>סטיפס</title>
   <style>
     * {
       box-sizing: border-box;
@@ -37,7 +37,7 @@
       flex-direction: column;
       position: relative;
       overflow: hidden;
-      box-shadow: 0 0 40px rgba(0, 0, 0, 0.9);
+      box-shadow: 0 0 40px rgba(0, 0, 0, 0.95);
     }
 
     /* ─── סרגל אדום עליון ─── */
@@ -48,22 +48,31 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 14px;
+      padding: 0 12px;
       flex-shrink: 0;
       z-index: 10;
     }
 
-    .top-bar-title {
-      color: #ffffff;
-      font-size: 1.05rem;
-      font-weight: 700;
-      letter-spacing: 0.3px;
-    }
-
-    .top-bar-actions {
+    .top-bar-left {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
+    }
+
+    /* התמונה / גיף שהמשתמש העלה במקום הטקסט */
+    .header-banner-gif {
+      max-height: 22px;
+      max-width: 220px;
+      width: auto;
+      object-fit: contain;
+      display: block;
+    }
+
+    .header-text-fallback {
+      color: #ffffff;
+      font-size: 0.95rem;
+      font-weight: 700;
+      display: none;
     }
 
     .user-pill {
@@ -85,9 +94,9 @@
 
     .user-pill span {
       color: #ffffff;
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       font-weight: 600;
-      max-width: 90px;
+      max-width: 80px;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -107,7 +116,7 @@
       background: rgba(0, 0, 0, 0.4);
     }
 
-    /* ─── מסך הצאט / הודעות (מופיע בכניסה) ─── */
+    /* ─── מסך הצאט / הודעות (נפתח מיד) ─── */
     #chat-screen {
       flex: 1;
       display: flex;
@@ -128,18 +137,45 @@
       -webkit-overflow-scrolling: touch;
     }
 
-    /* כרטיס הודעה - תואם בדיוק לציור */
+    /* כרטיס הודעה - עם גרדיאנט שכהה יותר למטה */
     .msg-card {
-      background-color: #7b868e;
+      background: linear-gradient(180deg, #87949e 0%, #636f78 100%);
       border: 1px solid rgba(0, 0, 0, 0.25);
-      border-radius: 4px;
+      border-radius: 6px;
       padding: 10px 12px;
       display: flex;
+      flex-direction: row;
       align-items: center;
       gap: 10px;
       color: #111111;
       width: 100%;
       flex-shrink: 0;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+    }
+
+    /* צד המשתמש והתמונה - בצד ימין מוחלט */
+    .msg-author-side {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .msg-avatar {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background-color: #ffffff;
+      border: 1px solid rgba(0, 0, 0, 0.2);
+      object-fit: cover;
+      flex-shrink: 0;
+    }
+
+    .msg-author {
+      font-weight: 700;
+      font-size: 0.92rem;
+      color: #111111;
+      white-space: nowrap;
     }
 
     /* תוכן ההודעה בצד שמאל */
@@ -150,26 +186,7 @@
       color: #111111;
       word-break: break-word;
       text-align: right;
-    }
-
-    /* שם המשתמש */
-    .msg-author {
-      font-weight: 700;
-      font-size: 0.9rem;
-      color: #1a1a1a;
-      white-space: nowrap;
-      flex-shrink: 0;
-    }
-
-    /* עיגול לבן לאווטאר - כמו בציור */
-    .msg-avatar {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      background-color: #ffffff;
-      border: 1px solid rgba(0, 0, 0, 0.15);
-      object-fit: cover;
-      flex-shrink: 0;
+      padding: 0 4px;
     }
 
     .empty-state {
@@ -180,7 +197,7 @@
       padding: 40px 10px;
     }
 
-    /* ─── בוקס תחתון לשליחת הודעות ─── */
+    /* ─── בוקס תחתון לשליחת הודעות (Sendbox) ─── */
     .bottom-input-container {
       width: 100%;
       padding: 10px;
@@ -192,19 +209,19 @@
     .bottom-input-box {
       width: 100%;
       height: 48px;
-      background-color: #2b333c;
+      background: linear-gradient(180deg, #323b45 0%, #242b32 100%);
       border: 1px solid #3d4752;
       border-radius: 6px;
       display: flex;
       align-items: center;
       padding: 0 12px;
       cursor: pointer;
-      transition: border-color 0.15s ease, background-color 0.15s ease;
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
+      transition: border-color 0.15s ease;
     }
 
     .bottom-input-box:focus-within {
       border-color: #d82b2b;
-      background-color: #313a44;
     }
 
     .bottom-input-box input {
@@ -239,7 +256,7 @@
       color: #d82b2b;
     }
 
-    /* ─── מסך חיבור לסטיפס (מופיע רק לפי דרישה) ─── */
+    /* ─── מסך חיבור לסטיפס ─── */
     #login-screen {
       flex: 1;
       display: none;
@@ -254,10 +271,11 @@
       max-width: 360px;
       width: 100%;
       margin: auto;
-      background-color: #212427;
+      background: linear-gradient(180deg, #262a2f 0%, #1c1e22 100%);
       border: 1px solid #32373c;
       border-radius: 8px;
       padding: 24px 20px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
     }
 
     .login-wrapper h2 {
@@ -294,24 +312,25 @@
     .btn-red {
       width: 100%;
       padding: 12px;
-      background-color: #d82b2b;
+      background: linear-gradient(180deg, #e53935 0%, #b71c1c 100%);
       color: #ffffff;
       border: none;
       border-radius: 6px;
       font-size: 0.95rem;
       font-weight: 700;
       cursor: pointer;
+      box-shadow: 0 2px 6px rgba(216, 43, 43, 0.4);
       transition: opacity 0.15s ease;
     }
     .btn-red:hover:not(:disabled) {
-      opacity: 0.9;
+      opacity: 0.92;
     }
     .btn-red:disabled {
       opacity: 0.5;
       cursor: not-allowed;
     }
 
-    /* שלב הצגת הקוד */
+    /* שלב הצגת הקוד עם העתקה קלה */
     #code-step {
       margin-top: 18px;
       padding-top: 18px;
@@ -319,12 +338,19 @@
     }
 
     .code-box-display {
-      background-color: #17191b;
+      background-color: #121416;
       border: 1px dashed #d82b2b;
       border-radius: 6px;
       padding: 12px;
       text-align: center;
-      margin-bottom: 14px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      position: relative;
+      transition: background-color 0.15s ease;
+    }
+
+    .code-box-display:hover {
+      background-color: #1a1c1f;
     }
 
     .code-box-display span {
@@ -340,6 +366,33 @@
       font-size: 1.45rem;
       letter-spacing: 3px;
       direction: ltr;
+      user-select: all;
+    }
+
+    /* כפתור העתקה בלחיצה אחת */
+    .btn-copy-code {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+      padding: 8px 12px;
+      background-color: #2b333c;
+      border: 1px solid #444c54;
+      border-radius: 6px;
+      color: #ffffff;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: 14px;
+      transition: background-color 0.15s ease;
+    }
+    .btn-copy-code:hover {
+      background-color: #38424d;
+    }
+    .btn-copy-code.copied {
+      background-color: #2e7d32;
+      border-color: #2e7d32;
     }
 
     .quick-link {
@@ -364,7 +417,7 @@
     .login-status-msg.error { color: #ff5252; }
     .login-status-msg.success { color: #4caf50; }
 
-    /* התאמה מלאה למובייל */
+    /* התאמה למובייל */
     @media (max-width: 480px) {
       body {
         align-items: stretch;
@@ -383,7 +436,12 @@
 
     <!-- ═══ סרגל אדום עליון ═══ -->
     <header class="top-red-bar">
-      <span class="top-bar-title" id="bar-title">צ'אט משתמשים</span>
+      <!-- הגיף/תמונה במקום הטקסט -->
+      <div class="top-bar-left">
+        <img src="header-banner.png" alt="סטיפס" class="header-banner-gif"
+             onerror="this.style.display='none'; document.getElementById('bar-title-text').style.display='block';">
+        <span class="header-text-fallback" id="bar-title-text">סטיפס</span>
+      </div>
 
       <div class="top-bar-actions">
         <!-- מוצג כשהמשתמש מחובר -->
@@ -402,11 +460,11 @@
         <div class="empty-state" id="feed-loading">טוען הודעות...</div>
       </div>
 
-      <!-- בוקס תחתון לשליחת הודעות -->
+      <!-- בוקס תחתון לשליחת הודעות (Sendbox) -->
       <footer class="bottom-input-container">
         <div class="bottom-input-box" id="bottom-box-wrapper">
           <input type="text" id="chat-input"
-                 placeholder="כתוב הודעה... (לחץ Enter לשליחה)"
+                 placeholder="המסר שלי לעולם"
                  autocomplete="off" maxlength="500">
           <button type="button" id="btn-send" class="btn-send-icon" title="שלח">➤</button>
         </div>
@@ -426,10 +484,15 @@
         </form>
 
         <div id="code-step" style="display: none;">
-          <div class="code-box-display">
-            <span>הדבק את הקוד בביו שלך בסטיפס:</span>
+          <div class="code-box-display" id="code-box-clickable" title="לחץ להעתקה">
+            <span>לחץ על הקוד או על הכפתור כדי להעתיק:</span>
             <strong id="display-verification-code"></strong>
           </div>
+
+          <!-- כפתור העתקה קל -->
+          <button type="button" id="btn-copy-code" class="btn-copy-code">
+            📋 העתק קוד ללוח
+          </button>
 
           <a id="profile-direct-link" class="quick-link" href="#" target="_blank" rel="noopener">פתח את הפרופיל שלך בסטיפס</a>
 

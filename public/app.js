@@ -1,263 +1,323 @@
 document.addEventListener('DOMContentLoaded', function () {
+  // מצב אפליקציה
+  let sessionToken = localStorage.getItem('stips_session_token') || '';
+  let currentUser = null;
+  let currentStipsId = '';
+  let generatedCode = '';
+  let pollTimer = null;
 
-  let currentSessionToken = localStorage.getItem('stips_session_token') || '';
-  let verifiedUser = null;
-  let currentIdentifier = '';
-  let currentCode = '';
+  // אלמנטים - מסך התחברות
+  const loginScreen   = document.getElementById('login-screen');
+  const authForm      = document.getElementById('auth-form');
+  const stipsInput    = document.getElementById('stips-input');
+  const btnGetCode    = document.getElementById('btn-get-code');
+  const codeBoxWrapper= document.getElementById('code-box-wrapper');
+  const codeText      = document.getElementById('code-text');
+  const stipsLink     = document.getElementById('stips-link');
+  const btnVerify     = document.getElementById('btn-verify');
+  const authStatus    = document.getElementById('auth-status');
 
-  // אלמנטים
-  const appHeader          = document.getElementById('app-header');
-  const headerAvatar       = document.getElementById('header-avatar');
-  const headerName         = document.getElementById('header-name');
-  const logoutBtn          = document.getElementById('logout-btn');
+  // אלמנטים - מסך לוח מסרים
+  const boardScreen   = document.getElementById('board-screen');
+  const myAvatar      = document.getElementById('my-avatar');
+  const myName        = document.getElementById('my-name');
+  const myTag         = document.getElementById('my-tag');
+  const btnLogout     = document.getElementById('btn-logout');
 
-  const verificationSection = document.getElementById('verification-section');
-  const generateForm        = document.getElementById('generate-code-form');
-  const usernameInput       = document.getElementById('username-input');
-  const generateBtn         = document.getElementById('generate-btn');
-  const codeSection         = document.getElementById('code-section');
-  const displayCode         = document.getElementById('display-code');
-  const stipsProfileLink    = document.getElementById('stips-profile-link');
-  const verifyBtn           = document.getElementById('verify-btn');
-  const statusMsg           = document.getElementById('status-msg');
+  // תיבת פרסום ופיד
+  const composerForm   = document.getElementById('composer-form');
+  const composerText   = document.getElementById('composer-text');
+  const composerStatus = document.getElementById('composer-status');
+  const btnPublish     = document.getElementById('btn-publish');
+  const feedContainer  = document.getElementById('feed-container');
 
-  const boardSection        = document.getElementById('board-section');
-  const chatMessages        = document.getElementById('chat-messages');
-  const emptyMsg            = document.getElementById('empty-msg');
-  const messageForm         = document.getElementById('message-form');
-  const messageInput        = document.getElementById('message-input');
-  const messageStatus       = document.getElementById('message-status');
-  const sendBtn             = document.getElementById('send-btn');
+  // עזר: אווטאר ברירת מחדל
+  function getAvatarUrl(user) {
+    if (user && user.profilePic && user.profilePic.startsWith('http')) {
+      return user.profilePic;
+    }
+    const name = (user && (user.username || user.id)) || 'U';
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=111827&color=ffffff&size=80`;
+  }
 
-  // ── כניסה אוטומטית ──────────────────────────────────────────────────────
-  async function checkPersistentLogin() {
-    if (!currentSessionToken) { showVerification(); return; }
+  // עזר: תאריך ושעה נוחים בעברית
+  function formatTime(isoString) {
+    if (!isoString) return '';
     try {
-      const res  = await fetch('/api/me', { headers: { Authorization: 'Bearer ' + currentSessionToken } });
-      const data = await res.json();
-      if (res.ok && data.success && data.user) {
-        verifiedUser = data.user;
-        showBoard();
-      } else {
-        clearSession(); showVerification();
-      }
-    } catch (e) { showVerification(); }
+      const d = new Date(isoString);
+      return d.toLocaleDateString('he-IL', {
+        day: 'numeric',
+        month: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch (e) {
+      return '';
+    }
   }
 
-  function clearSession() {
-    currentSessionToken = '';
-    verifiedUser = null;
-    localStorage.removeItem('stips_session_token');
+  function setAuthStatus(msg, type) {
+    authStatus.textContent = msg;
+    authStatus.className = 'status-alert ' + (type || '');
   }
 
-  function showBoard() {
-    verificationSection.hidden = true;
-    boardSection.hidden = false;
-    appHeader.hidden = false;
+  function escapeHtml(str) {
+    return String(str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
 
-    const avatarSrc = verifiedUser.profilePic || avatarFallback(verifiedUser.username);
-    headerAvatar.src = avatarSrc;
-    headerAvatar.onerror = () => { headerAvatar.src = avatarFallback(verifiedUser.username); };
-    headerName.textContent = verifiedUser.username || verifiedUser.id;
+  // ─── 1. מעבר חלק בין מסכים ───
+  function showBoardView(user) {
+    currentUser = user;
+    loginScreen.style.display = 'none';
+    boardScreen.style.display = 'flex';
 
+    myAvatar.src = getAvatarUrl(user);
+    myAvatar.onerror = () => { myAvatar.src = getAvatarUrl(null); };
+    myName.textContent = user.username || user.id;
+    myTag.textContent = '@' + (user.id || '');
+
+    // טעינת מסרים
     loadMessages();
-    // רענון אוטומטי כל 15 שניות
-    clearInterval(window._pollInterval);
-    window._pollInterval = setInterval(loadMessages, 15000);
+    clearInterval(pollTimer);
+    pollTimer = setInterval(loadMessages, 8000);
   }
 
-  function showVerification() {
-    clearInterval(window._pollInterval);
-    boardSection.hidden = true;
-    appHeader.hidden = true;
-    verificationSection.hidden = false;
-    codeSection.hidden = true;
-    usernameInput.value = '';
-    currentIdentifier = '';
-    currentCode = '';
-    setStatus('', '');
+  function showLoginView() {
+    currentUser = null;
+    sessionToken = '';
+    localStorage.removeItem('stips_session_token');
+    clearInterval(pollTimer);
+
+    boardScreen.style.display = 'none';
+    loginScreen.style.display = 'flex';
+    codeBoxWrapper.hidden = true;
+    stipsInput.value = '';
+    currentStipsId = '';
+    generatedCode = '';
+    setAuthStatus('', '');
   }
 
-  function setStatus(msg, type) {
-    statusMsg.textContent = msg;
-    statusMsg.className = type || '';
+  // ─── 2. אימות אוטומטי בכניסה (Persistent Login) ───
+  async function checkPersistentSession() {
+    if (!sessionToken) {
+      showLoginView();
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/me', {
+        headers: { 'Authorization': 'Bearer ' + sessionToken }
+      });
+      const data = await res.json();
+
+      if (res.ok && data.success && data.user) {
+        showBoardView(data.user);
+      } else {
+        showLoginView();
+      }
+    } catch (err) {
+      showLoginView();
+    }
   }
 
-  function avatarFallback(name) {
-    return 'https://ui-avatars.com/api/?name=' + encodeURIComponent(name || 'U') + '&background=333&color=fff&size=60';
-  }
-
-  // ── יצירת קוד ────────────────────────────────────────────────────────────
-  generateForm.addEventListener('submit', async function (e) {
+  // ─── 3. שלב א': יצירת קוד אימות ───
+  authForm.addEventListener('submit', async function (e) {
     e.preventDefault();
-    const inputVal = usernameInput.value.trim();
+    const inputVal = stipsInput.value.trim();
     if (!inputVal) return;
 
-    generateBtn.disabled = true;
-    generateBtn.textContent = 'יוצר...';
-    setStatus('', '');
+    btnGetCode.disabled = true;
+    btnGetCode.textContent = 'מייצר קוד...';
+    setAuthStatus('', '');
 
     try {
-      const res  = await fetch('/api/generate-code', {
+      const res = await fetch('/api/generate-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ stipsUsername: inputVal })
       });
       const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.error || 'שגיאה');
 
-      currentIdentifier      = data.identifier || inputVal;
-      currentCode            = data.verificationCode;
-      displayCode.textContent = currentCode;
-      stipsProfileLink.href  = data.profileUrl || `https://stips.co.il/profile/${encodeURIComponent(currentIdentifier)}`;
-      codeSection.hidden     = false;
-      setStatus('הקוד נוצר! הדבק אותו בביו שלך בסטיפס.', 'success');
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'נכשל ביצירת קוד אימות');
+      }
+
+      currentStipsId = data.identifier || inputVal;
+      generatedCode = data.verificationCode;
+
+      codeText.textContent = generatedCode;
+      stipsLink.href = data.profileUrl || `https://stips.co.il/profile/${encodeURIComponent(currentStipsId)}`;
+      codeBoxWrapper.hidden = false;
+
+      setAuthStatus('הקוד נוצר. הדבק אותו בביו ולחץ "אמת וכנס".', 'success');
     } catch (err) {
-      setStatus('שגיאה: ' + err.message, 'error');
+      setAuthStatus('שגיאה: ' + err.message, 'error');
     } finally {
-      generateBtn.disabled = false;
-      generateBtn.textContent = 'קבל קוד';
+      btnGetCode.disabled = false;
+      btnGetCode.textContent = 'קבל קוד אימות';
     }
   });
 
-  // ── אימות ────────────────────────────────────────────────────────────────
-  verifyBtn.addEventListener('click', async function () {
-    if (!currentIdentifier || !currentCode) {
-      setStatus('נא להזין מזהה סטיפס ולייצר קוד תחילה.', 'error');
+  // ─── 4. שלב ב': אימות הפרופיל ───
+  btnVerify.addEventListener('click', async function () {
+    if (!currentStipsId || !generatedCode) {
+      setAuthStatus('אנא צור קוד תחילה.', 'error');
       return;
     }
-    verifyBtn.disabled = true;
-    verifyBtn.textContent = 'מאמת...';
-    setStatus('בודק את הפרופיל שלך... אנא המתן.', '');
+
+    btnVerify.disabled = true;
+    btnVerify.textContent = 'בודק פרופיל בסטיפס...';
+    setAuthStatus('בודק את הפרופיל שלך בסטיפס, אנא המתן...', '');
 
     try {
-      const res  = await fetch('/api/verify-stips', {
+      const res = await fetch('/api/verify-stips', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stipsUsername: currentIdentifier, verificationCode: currentCode })
+        body: JSON.stringify({
+          stipsUsername: currentStipsId,
+          verificationCode: generatedCode
+        })
       });
       const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data.error || 'האימות נכשל');
 
-      currentSessionToken = data.sessionToken;
-      localStorage.setItem('stips_session_token', currentSessionToken);
-      verifiedUser = data.user;
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'האימות נכשל');
+      }
 
-      setStatus('האימות הצליח!', 'success');
-      setTimeout(() => showBoard(), 400);
+      if (data.sessionToken) {
+        sessionToken = data.sessionToken;
+        localStorage.setItem('stips_session_token', sessionToken);
+      }
+
+      setAuthStatus('אימות הצליח! מעביר ללוח המסרים...', 'success');
+      setTimeout(() => {
+        showBoardView(data.user);
+      }, 350);
+
     } catch (err) {
-      setStatus('האימות נכשל: ' + err.message, 'error');
+      setAuthStatus('האימות נכשל: ' + err.message, 'error');
     } finally {
-      verifyBtn.disabled = false;
-      verifyBtn.textContent = 'אמת פרופיל';
+      btnVerify.disabled = false;
+      btnVerify.textContent = 'אמת וכנס ללוח';
     }
   });
 
-  // ── התנתקות ──────────────────────────────────────────────────────────────
-  logoutBtn.addEventListener('click', async function () {
+  // ─── 5. התנתקות ───
+  btnLogout.addEventListener('click', async function () {
     try {
       await fetch('/api/logout', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + currentSessionToken },
-        body: JSON.stringify({ sessionToken: currentSessionToken })
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + sessionToken
+        },
+        body: JSON.stringify({ sessionToken })
       });
     } catch (e) {}
-    clearSession();
-    showVerification();
+    showLoginView();
   });
 
-  // ── טעינת הודעות ─────────────────────────────────────────────────────────
+  // ─── 6. טעינת והצגת מסרים (Feed) ───
   async function loadMessages() {
     try {
-      const res  = await fetch('/api/messages');
+      const res = await fetch('/api/messages');
       const data = await res.json();
-      if (res.ok && data.success) renderMessages(data.messages || []);
-    } catch (e) {
-      console.warn('loadMessages error:', e.message);
+      if (res.ok && data.success) {
+        renderFeed(data.messages || []);
+      }
+    } catch (err) {
+      console.warn('Error loading messages:', err.message);
     }
   }
 
-  function esc(str) {
-    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
-
-  function renderMessages(messages) {
-    chatMessages.innerHTML = '';
-
-    if (!messages.length) {
-      chatMessages.innerHTML = '<div class="empty-chat">עדיין אין הודעות. היה הראשון! 🎉</div>';
+  function renderFeed(messages) {
+    if (!messages || messages.length === 0) {
+      feedContainer.innerHTML = '<div class="empty-feed">עדיין לא פורסמו מסרים. היה הראשון לפרסם! ✨</div>';
       return;
     }
 
-    messages.forEach(function (msg) {
-      const isMe  = verifiedUser && msg.userId === verifiedUser.id;
-      const wrap  = document.createElement('div');
-      wrap.className = 'bubble-wrap ' + (isMe ? 'me' : 'other');
+    // הצגה מהמסר החדש ביותר לישן ביותר
+    const sorted = [...messages].reverse();
 
-      const src  = msg.profilePic || avatarFallback(msg.username);
-      const time = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : '';
+    feedContainer.innerHTML = sorted.map(msg => {
+      const avatar = msg.profilePic || getAvatarUrl({ username: msg.username, id: msg.userId });
+      const timeStr = formatTime(msg.timestamp);
 
-      wrap.innerHTML = `
-        <img src="${esc(src)}" alt="${esc(msg.username)}" onerror="this.src='${avatarFallback(msg.username)}'">
-        <div class="bubble">
-          ${!isMe ? `<div class="bname">${esc(msg.username)}</div>` : ''}
-          <div>${esc(msg.text)}</div>
-          <div class="btime">${esc(time)}</div>
-        </div>`;
-
-      chatMessages.appendChild(wrap);
-    });
-
-    // גלול לתחתית
-    chatMessages.scrollTop = chatMessages.scrollHeight;
+      return `
+        <article class="message-card">
+          <img class="avatar" src="${escapeHtml(avatar)}" alt="${escapeHtml(msg.username)}"
+               onerror="this.src='https://ui-avatars.com/api/?name=U&background=111827&color=ffffff&size=72'">
+          <div class="message-body">
+            <div class="message-meta">
+              <span class="author-name">${escapeHtml(msg.username || 'משתמש')}</span>
+              <time class="message-time">${escapeHtml(timeStr)}</time>
+            </div>
+            <div class="message-text">${escapeHtml(msg.text)}</div>
+          </div>
+        </article>
+      `;
+    }).join('');
   }
 
-  // ── שליחת הודעה ──────────────────────────────────────────────────────────
-  messageForm.addEventListener('submit', async function (e) {
+  // ─── 7. פרסום מסר חדש ───
+  composerForm.addEventListener('submit', async function (e) {
     e.preventDefault();
-
-    if (!currentSessionToken || !verifiedUser) {
-      messageStatus.textContent = 'אין חיבור פעיל. אנא אמת מחדש.';
+    if (!sessionToken || !currentUser) {
+      showLoginView();
       return;
     }
 
-    const text = messageInput.value.trim();
+    const text = composerText.value.trim();
     if (!text) return;
 
-    sendBtn.disabled = true;
-    messageInput.disabled = true;
+    btnPublish.disabled = true;
+    btnPublish.textContent = 'מפרסם...';
+    composerStatus.textContent = '';
 
     try {
-      const res  = await fetch('/api/messages', {
+      const res = await fetch('/api/messages', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + currentSessionToken },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + sessionToken
+        },
         body: JSON.stringify({ text })
       });
       const data = await res.json();
 
       if (res.status === 401 || res.status === 403 || data.expired) {
-        clearSession();
-        showVerification();
+        showLoginView();
         return;
       }
 
-      if (!res.ok || !data.success) throw new Error(data.error || 'שגיאה');
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'שגיאה בפרסום המסר');
+      }
 
-      messageInput.value = '';
-      messageStatus.textContent = '';
+      composerText.value = '';
+      composerStatus.textContent = 'פורסם בהצלחה!';
+      setTimeout(() => { composerStatus.textContent = ''; }, 2500);
 
-      if (data.messages) renderMessages(data.messages);
-      else loadMessages();
+      if (data.messages) {
+        renderFeed(data.messages);
+      } else {
+        loadMessages();
+      }
 
     } catch (err) {
-      messageStatus.textContent = 'שגיאה: ' + err.message;
+      composerStatus.textContent = 'שגיאה: ' + err.message;
     } finally {
-      sendBtn.disabled = false;
-      messageInput.disabled = false;
-      messageInput.focus();
+      btnPublish.disabled = false;
+      btnPublish.textContent = 'פרסם מסר';
+      composerText.focus();
     }
   });
 
-  // הפעלה
-  checkPersistentLogin();
+  // התחלת בדיקה בכניסה לדף
+  checkPersistentSession();
 });

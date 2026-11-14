@@ -143,6 +143,24 @@
       border: 1px solid rgba(0, 0, 0, 0.2);
       object-fit: cover;
       flex-shrink: 0;
+      transition: box-shadow 0.3s ease, border-color 0.3s ease;
+    }
+
+    /* הבהוב אפור (Fade Pulse) מסביב לפרופיל רק כשהמשתמש מחובר */
+    @keyframes grayPulseFade {
+      0%, 100% {
+        box-shadow: 0 0 0 1.5px rgba(210, 215, 220, 0.95), 0 0 6px rgba(190, 195, 200, 0.4);
+        border-color: #c4c9ce;
+      }
+      50% {
+        box-shadow: 0 0 0 3.5px rgba(130, 135, 140, 0.3), 0 0 10px rgba(130, 135, 140, 0.15);
+        border-color: #4a5055;
+      }
+    }
+
+    .msg-avatar.avatar-fade-pulse {
+      animation: grayPulseFade 2.2s infinite ease-in-out !important;
+      border: 1.5px solid #8e979e !important;
     }
 
     .msg-author {

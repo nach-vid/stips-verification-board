@@ -5,6 +5,7 @@ const path = require('path');
 
 const verificationRoutes = require('./routes/verification');
 const messageRoutes = require('./routes/messages');
+const axios = require('axios');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -31,6 +32,11 @@ app.use((req, res, next) => {
   next();
 });
 
+// Ping endpoint for 24/7 keep-alive monitoring
+app.get('/api/ping', (req, res) => {
+  res.json({ ok: true, uptime: process.uptime(), time: new Date().toISOString() });
+});
+
 // Serve raw bare-bones static frontend
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
@@ -47,4 +53,15 @@ app.get('*', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server is running at http://localhost:${PORT}`);
   console.log(`Frontend accessible at http://localhost:${PORT}`);
+
+  // 24/7 Self-Ping Keep-Alive for Render (pings every 9 minutes to prevent spinning down)
+  const APP_URL = process.env.RENDER_EXTERNAL_URL || 'https://stips-verification-board.onrender.com';
+  console.log(`[KeepAlive] 24/7 pinger active for: ${APP_URL}`);
+
+  setInterval(() => {
+    const pingTarget = `${APP_URL.replace(/\/+$/, '')}/api/ping`;
+    axios.get(pingTarget, { timeout: 10000 })
+      .then(() => console.log(`[KeepAlive] 24/7 ping OK: ${new Date().toLocaleTimeString('he-IL')}`))
+      .catch(err => console.warn(`[KeepAlive] Ping warning: ${err.message}`));
+  }, 9 * 60 * 1000); // every 9 minutes (Render sleeps after 15 min)
 });

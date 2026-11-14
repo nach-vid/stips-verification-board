@@ -4,6 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>סטיפס</title>
+
+  <!-- Google Font: Cousine -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cousine:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+
   <style>
     * {
       box-sizing: border-box;
@@ -16,12 +22,12 @@
       width: 100%;
       height: 100%;
       background-color: #000000;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-family: 'Cousine', monospace, -apple-system, sans-serif;
       direction: rtl;
       overflow: hidden;
     }
 
-    /* במחשב: מסך הטלפון ממורכז ובצדדים שחור מוחלט */
+    /* במחשב: מסך ממורכז ובצדדים רקע שחור */
     body {
       display: flex;
       justify-content: center;
@@ -32,96 +38,63 @@
       width: 100%;
       max-width: 440px;
       height: 100vh;
-      background-color: #151718;
+      background-color: #17181a;
       display: flex;
       flex-direction: column;
       position: relative;
       overflow: hidden;
-      box-shadow: 0 0 40px rgba(0, 0, 0, 0.95);
+      box-shadow: 0 0 50px rgba(0, 0, 0, 0.95);
     }
 
-    /* ─── סרגל אדום עליון ─── */
-    .top-red-bar {
+    /* ─── סרגל עליון עם החרב על רקע הצאט ─── */
+    .top-header-bar {
       width: 100%;
-      height: 52px;
-      background-color: #d82b2b;
+      height: 56px;
+      background-color: #17181a;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: center;
+      position: relative;
       padding: 0 12px;
       flex-shrink: 0;
       z-index: 10;
     }
 
-    .top-bar-left {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    /* התמונה / גיף שהמשתמש העלה במקום הטקסט */
-    .header-banner-gif {
-      max-height: 22px;
-      max-width: 220px;
+    .top-sword-img {
+      max-height: 26px;
       width: auto;
+      max-width: 82%;
       object-fit: contain;
       display: block;
+      filter: drop-shadow(0 0 6px rgba(220, 50, 50, 0.35));
     }
 
-    .header-text-fallback {
-      color: #ffffff;
-      font-size: 0.95rem;
-      font-weight: 700;
+    /* כפתור התנתקות קטן ועדין בצד שמאל אם מחובר */
+    .subtle-logout-btn {
+      position: absolute;
+      left: 10px;
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
+      color: #888888;
+      font-size: 0.68rem;
+      padding: 3px 6px;
+      cursor: pointer;
+      font-family: 'Cousine', monospace;
       display: none;
     }
-
-    .user-pill {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      background: rgba(0, 0, 0, 0.25);
-      padding: 3px 8px;
-      border-radius: 20px;
+    .subtle-logout-btn:hover {
+      color: #ff5252;
+      border-color: #ff5252;
     }
 
-    .user-pill img {
-      width: 22px;
-      height: 22px;
-      border-radius: 50%;
-      object-fit: cover;
-      background: #ffffff;
-    }
-
-    .user-pill span {
-      color: #ffffff;
-      font-size: 0.78rem;
-      font-weight: 600;
-      max-width: 80px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .btn-top-action {
-      background: rgba(0, 0, 0, 0.25);
-      border: none;
-      color: #ffffff;
-      font-size: 0.78rem;
-      font-weight: 600;
-      padding: 5px 10px;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-    .btn-top-action:hover {
-      background: rgba(0, 0, 0, 0.4);
-    }
-
-    /* ─── מסך הצאט / הודעות (נפתח מיד) ─── */
+    /* ─── מסך הצ'אט ─── */
     #chat-screen {
       flex: 1;
       display: flex;
       flex-direction: column;
-      height: calc(100vh - 52px);
+      height: calc(100vh - 56px);
       overflow: hidden;
       background-color: #17181a;
     }
@@ -137,7 +110,7 @@
       -webkit-overflow-scrolling: touch;
     }
 
-    /* כרטיס הודעה - עם גרדיאנט שכהה יותר למטה */
+    /* כרטיס הודעה - גרדיאנט עם פונט Cousine */
     .msg-card {
       background: linear-gradient(180deg, #87949e 0%, #636f78 100%);
       border: 1px solid rgba(0, 0, 0, 0.25);
@@ -151,9 +124,10 @@
       width: 100%;
       flex-shrink: 0;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+      font-family: 'Cousine', monospace;
     }
 
-    /* צד המשתמש והתמונה - בצד ימין מוחלט */
+    /* משתמש ותמונה בצד ימין מוחלט */
     .msg-author-side {
       display: flex;
       align-items: center;
@@ -195,9 +169,10 @@
       font-size: 0.88rem;
       margin: auto;
       padding: 40px 10px;
+      font-family: 'Cousine', monospace;
     }
 
-    /* ─── בוקס תחתון לשליחת הודעות (Sendbox) ─── */
+    /* ─── בוקס תחתון (Sendbox) ─── */
     .bottom-input-container {
       width: 100%;
       padding: 10px;
@@ -208,7 +183,7 @@
 
     .bottom-input-box {
       width: 100%;
-      height: 48px;
+      height: 50px;
       background: linear-gradient(180deg, #323b45 0%, #242b32 100%);
       border: 1px solid #3d4752;
       border-radius: 6px;
@@ -221,7 +196,7 @@
     }
 
     .bottom-input-box:focus-within {
-      border-color: #d82b2b;
+      border-color: #a82020;
     }
 
     .bottom-input-box input {
@@ -232,184 +207,212 @@
       color: #ffffff;
       font-size: 0.92rem;
       direction: rtl;
-      font-family: inherit;
+      font-family: 'Cousine', monospace;
     }
 
     .bottom-input-box input::placeholder {
       color: #8f9ba6;
     }
 
-    .btn-send-icon {
+    /* כפתור מזרק לשליחה */
+    .btn-syringe-send {
       background: none;
       border: none;
-      color: #ffffff;
-      font-size: 1.15rem;
       cursor: pointer;
-      padding: 4px 6px;
+      padding: 2px 4px;
       display: flex;
       align-items: center;
       justify-content: center;
-      opacity: 0.85;
-    }
-    .btn-send-icon:hover {
-      opacity: 1;
-      color: #d82b2b;
+      flex-shrink: 0;
+      transition: transform 0.1s ease, filter 0.15s ease;
     }
 
-    /* ─── מסך חיבור לסטיפס ─── */
+    .btn-syringe-send img {
+      width: 28px;
+      height: 28px;
+      image-rendering: pixelated;
+      display: block;
+    }
+
+    .btn-syringe-send:hover img {
+      filter: drop-shadow(0 0 4px #ff3333) brightness(1.2);
+    }
+
+    .btn-syringe-send:active {
+      transform: scale(0.9);
+    }
+
+    /* ─── מסך חיבור לסטיפס (פשוט, מובן וברור) ─── */
     #login-screen {
       flex: 1;
       display: none;
       flex-direction: column;
-      height: calc(100vh - 52px);
+      height: calc(100vh - 56px);
       background-color: #17181a;
-      padding: 24px 18px;
+      padding: 20px 16px;
       overflow-y: auto;
+      font-family: 'Cousine', monospace;
     }
 
-    .login-wrapper {
-      max-width: 360px;
+    .login-clean-card {
+      max-width: 380px;
       width: 100%;
       margin: auto;
-      background: linear-gradient(180deg, #262a2f 0%, #1c1e22 100%);
+      background: #1f2226;
       border: 1px solid #32373c;
       border-radius: 8px;
-      padding: 24px 20px;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+      padding: 22px 18px;
     }
 
-    .login-wrapper h2 {
+    .login-clean-card h2 {
       color: #ffffff;
       font-size: 1.15rem;
       font-weight: 700;
-      margin-bottom: 6px;
+      margin-bottom: 16px;
       text-align: center;
     }
 
-    .login-wrapper p.hint {
-      color: #8f9ba6;
-      font-size: 0.82rem;
-      text-align: center;
-      margin-bottom: 20px;
+    .simple-label {
+      color: #a0aab2;
+      font-size: 0.85rem;
+      display: block;
+      margin-bottom: 8px;
     }
 
-    .login-input {
+    .clean-input {
       width: 100%;
-      padding: 12px 14px;
-      background-color: #2d3237;
+      padding: 12px;
+      background-color: #2b3036;
       border: 1px solid #444c54;
       border-radius: 6px;
       color: #ffffff;
-      font-size: 0.95rem;
+      font-size: 1rem;
       direction: ltr;
       outline: none;
-      margin-bottom: 12px;
+      margin-bottom: 14px;
+      font-family: 'Cousine', monospace;
     }
-    .login-input:focus {
+
+    .clean-input:focus {
       border-color: #d82b2b;
     }
 
-    .btn-red {
+    .btn-action-red {
       width: 100%;
       padding: 12px;
-      background: linear-gradient(180deg, #e53935 0%, #b71c1c 100%);
+      background-color: #b71c1c;
       color: #ffffff;
       border: none;
       border-radius: 6px;
       font-size: 0.95rem;
       font-weight: 700;
       cursor: pointer;
-      box-shadow: 0 2px 6px rgba(216, 43, 43, 0.4);
-      transition: opacity 0.15s ease;
+      font-family: 'Cousine', monospace;
+      transition: background-color 0.15s ease;
     }
-    .btn-red:hover:not(:disabled) {
-      opacity: 0.92;
+
+    .btn-action-red:hover:not(:disabled) {
+      background-color: #d32f2f;
     }
-    .btn-red:disabled {
+
+    .btn-action-red:disabled {
       opacity: 0.5;
       cursor: not-allowed;
     }
 
-    /* שלב הצגת הקוד עם העתקה קלה */
-    #code-step {
+    /* שלב 2: קוד אימות פשוט וברור */
+    #code-step-box {
       margin-top: 18px;
       padding-top: 18px;
-      border-top: 1px solid #32373c;
+      border-top: 1px solid #33383f;
     }
 
-    .code-box-display {
+    /* תיבת קוד ברורה עם חיווי העתקה */
+    .big-code-box {
       background-color: #121416;
-      border: 1px dashed #d82b2b;
-      border-radius: 6px;
-      padding: 12px;
+      border: 2px dashed #b71c1c;
+      border-radius: 8px;
+      padding: 14px;
       text-align: center;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
       cursor: pointer;
-      position: relative;
       transition: background-color 0.15s ease;
     }
 
-    .code-box-display:hover {
-      background-color: #1a1c1f;
-    }
-
-    .code-box-display span {
+    .big-code-box .code-val {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: 3px;
+      direction: ltr;
       display: block;
-      color: #8f9ba6;
-      font-size: 0.75rem;
       margin-bottom: 4px;
     }
 
-    .code-box-display strong {
+    .big-code-box .tap-hint {
+      color: #ff5252;
+      font-size: 0.78rem;
       display: block;
-      color: #ffffff;
-      font-size: 1.45rem;
-      letter-spacing: 3px;
-      direction: ltr;
-      user-select: all;
     }
 
-    /* כפתור העתקה בלחיצה אחת */
-    .btn-copy-code {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
+    /* הנחיה פשוטה של מה עושים עם הקוד */
+    .step-instruction {
+      background-color: #262b31;
+      border-radius: 6px;
+      padding: 12px 14px;
+      color: #e0e0e0;
+      font-size: 0.85rem;
+      line-height: 1.6;
+      margin-bottom: 14px;
+    }
+
+    .step-instruction ol {
+      padding-right: 18px;
+    }
+
+    .step-instruction li {
+      margin-bottom: 4px;
+    }
+
+    .btn-open-stips {
+      display: block;
       width: 100%;
-      padding: 8px 12px;
+      text-align: center;
+      padding: 10px;
       background-color: #2b333c;
-      border: 1px solid #444c54;
+      border: 1px solid #4a5562;
       border-radius: 6px;
       color: #ffffff;
-      font-size: 0.85rem;
-      font-weight: 600;
-      cursor: pointer;
-      margin-bottom: 14px;
+      text-decoration: none;
+      font-size: 0.88rem;
+      font-weight: 700;
+      margin-bottom: 12px;
       transition: background-color 0.15s ease;
     }
-    .btn-copy-code:hover {
-      background-color: #38424d;
-    }
-    .btn-copy-code.copied {
-      background-color: #2e7d32;
-      border-color: #2e7d32;
+
+    .btn-open-stips:hover {
+      background-color: #3b4652;
     }
 
-    .quick-link {
+    .btn-back-chat {
       display: block;
       text-align: center;
-      color: #4da3ff;
-      text-decoration: none;
-      font-size: 0.85rem;
-      margin-bottom: 14px;
-      font-weight: 600;
+      background: none;
+      border: none;
+      color: #8f9ba6;
+      font-size: 0.8rem;
+      margin-top: 14px;
+      cursor: pointer;
+      width: 100%;
+      font-family: 'Cousine', monospace;
     }
-    .quick-link:hover {
-      text-decoration: underline;
+
+    .btn-back-chat:hover {
+      color: #ffffff;
     }
 
     .login-status-msg {
-      margin-top: 12px;
+      margin-top: 10px;
       font-size: 0.82rem;
       text-align: center;
       min-height: 18px;
@@ -417,7 +420,6 @@
     .login-status-msg.error { color: #ff5252; }
     .login-status-msg.success { color: #4caf50; }
 
-    /* התאמה למובייל */
     @media (max-width: 480px) {
       body {
         align-items: stretch;
@@ -434,71 +436,68 @@
 
   <div id="app-container">
 
-    <!-- ═══ סרגל אדום עליון ═══ -->
-    <header class="top-red-bar">
-      <!-- הגיף/תמונה במקום הטקסט -->
-      <div class="top-bar-left">
-        <img src="header-banner.png" alt="סטיפס" class="header-banner-gif"
-             onerror="this.style.display='none'; document.getElementById('bar-title-text').style.display='block';">
-        <span class="header-text-fallback" id="bar-title-text">סטיפס</span>
-      </div>
-
-      <div class="top-bar-actions">
-        <!-- מוצג כשהמשתמש מחובר -->
-        <div id="user-info-pill" class="user-pill" style="display: none;">
-          <img id="user-pill-img" src="" alt="avatar">
-          <span id="user-pill-name">משתמש</span>
-        </div>
-        <button id="btn-auth-action" class="btn-top-action">התחבר</button>
-      </div>
+    <!-- ═══ סרגל עליון עם החרב על רקע הצאט ═══ -->
+    <header class="top-header-bar">
+      <img src="sword.png" alt="Sword" class="top-sword-img">
+      <button id="btn-logout" class="subtle-logout-btn" title="התנתק מהחשבון">התנתק</button>
     </header>
 
-    <!-- ═══ מסך 1: צ'אט והודעות (נפתח מיד בכניסה) ═══ -->
+    <!-- ═══ מסך 1: צ'אט והודעות (נפתח מיד) ═══ -->
     <main id="chat-screen">
       <!-- רשימת ההודעות (החדשות למעלה) -->
       <div id="messages-feed">
         <div class="empty-state" id="feed-loading">טוען הודעות...</div>
       </div>
 
-      <!-- בוקס תחתון לשליחת הודעות (Sendbox) -->
+      <!-- בוקס תחתון (Sendbox) עם מזרק -->
       <footer class="bottom-input-container">
         <div class="bottom-input-box" id="bottom-box-wrapper">
           <input type="text" id="chat-input"
                  placeholder="המסר שלי לעולם"
                  autocomplete="off" maxlength="500">
-          <button type="button" id="btn-send" class="btn-send-icon" title="שלח">➤</button>
+          <button type="button" id="btn-send" class="btn-syringe-send" title="שלח מסר">
+            <img src="syringe.png" alt="שלח">
+          </button>
         </div>
       </footer>
     </main>
 
-    <!-- ═══ מסך 2: חיבור לסטיפס (מופיע רק בלחיצה במידה ולא מחובר) ═══ -->
+    <!-- ═══ מסך 2: חיבור לסטיפס (ברור ופשוט) ═══ -->
     <section id="login-screen">
-      <div class="login-wrapper">
+      <div class="login-clean-card">
         <h2>חיבור לסטיפס</h2>
-        <p class="hint">הזן מספר ID או קישור לפרופיל בסטיפס</p>
 
+        <!-- שלב 1: הזנת מזהה -->
         <form id="login-form">
-          <input type="text" id="stips-id-input" class="login-input"
+          <label for="stips-id-input" class="simple-label">מספר פרופיל בסטיפס (ID):</label>
+          <input type="text" id="stips-id-input" class="clean-input"
                  placeholder="לדוגמה: 428498" required autocomplete="off">
-          <button type="submit" id="btn-submit-id" class="btn-red">קבל קוד אימות</button>
+          <button type="submit" id="btn-submit-id" class="btn-action-red">קבל קוד אימות</button>
         </form>
 
-        <div id="code-step" style="display: none;">
-          <div class="code-box-display" id="code-box-clickable" title="לחץ להעתקה">
-            <span>לחץ על הקוד או על הכפתור כדי להעתיק:</span>
-            <strong id="display-verification-code"></strong>
+        <!-- שלב 2: קוד והוראה ברורה -->
+        <div id="code-step-box" style="display: none;">
+          <div class="big-code-box" id="code-copy-box" title="לחץ כדי להעתיק">
+            <span class="code-val" id="display-verification-code"></span>
+            <span class="tap-hint" id="copy-status-hint">📋 לחץ על הקוד להעתקה מהירה</span>
           </div>
 
-          <!-- כפתור העתקה קל -->
-          <button type="button" id="btn-copy-code" class="btn-copy-code">
-            📋 העתק קוד ללוח
-          </button>
+          <div class="step-instruction">
+            <ol>
+              <li>העתק את הקוד שלמעלה.</li>
+              <li>הדבק אותו ב<strong>ביו (תיאור הפרופיל)</strong> שלך בסטיפס ושמור.</li>
+              <li>לחץ "אמת והתחבר" למטה.</li>
+            </ol>
+          </div>
 
-          <a id="profile-direct-link" class="quick-link" href="#" target="_blank" rel="noopener">פתח את הפרופיל שלך בסטיפס</a>
+          <a id="profile-direct-link" class="btn-open-stips" href="#" target="_blank" rel="noopener">
+            🔗 פתח את הפרופיל שלך בסטיפס
+          </a>
 
-          <button type="button" id="btn-verify-stips" class="btn-red">אמת והתחבר</button>
+          <button type="button" id="btn-verify-stips" class="btn-action-red">אמת והתחבר</button>
         </div>
 
+        <button type="button" id="btn-back-to-chat" class="btn-back-chat">← חזרה להודעות</button>
         <div id="login-status" class="login-status-msg"></div>
       </div>
     </section>

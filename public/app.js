@@ -17,10 +17,7 @@ document.addEventListener('DOMContentLoaded', function () {
   let pollInterval = null;
 
   // אלמנטים - סרגל עליון
-  const userInfoPill   = document.getElementById('user-info-pill');
-  const userPillImg    = document.getElementById('user-pill-img');
-  const userPillName   = document.getElementById('user-pill-name');
-  const btnAuthAction  = document.getElementById('btn-auth-action');
+  const btnLogout = document.getElementById('btn-logout');
 
   // אלמנטים - מסך צ'אט
   const chatScreen       = document.getElementById('chat-screen');
@@ -34,12 +31,13 @@ document.addEventListener('DOMContentLoaded', function () {
   const loginForm           = document.getElementById('login-form');
   const stipsIdInput        = document.getElementById('stips-id-input');
   const btnSubmitId         = document.getElementById('btn-submit-id');
-  const codeStep            = document.getElementById('code-step');
-  const codeBoxClickable    = document.getElementById('code-box-clickable');
+  const codeStepBox         = document.getElementById('code-step-box');
+  const codeCopyBox         = document.getElementById('code-copy-box');
   const displayCodeEl       = document.getElementById('display-verification-code');
-  const btnCopyCode         = document.getElementById('btn-copy-code');
+  const copyStatusHint      = document.getElementById('copy-status-hint');
   const profileDirectLink   = document.getElementById('profile-direct-link');
   const btnVerifyStips      = document.getElementById('btn-verify-stips');
+  const btnBackToChat       = document.getElementById('btn-back-to-chat');
   const loginStatus         = document.getElementById('login-status');
 
   // עזר: אווטאר בטוח
@@ -70,7 +68,7 @@ document.addEventListener('DOMContentLoaded', function () {
     loginScreen.style.display = 'none';
     chatScreen.style.display = 'flex';
 
-    updateHeaderAuthUI();
+    updateHeaderUI();
     loadMessages();
 
     clearInterval(pollInterval);
@@ -81,35 +79,27 @@ document.addEventListener('DOMContentLoaded', function () {
     clearInterval(pollInterval);
     chatScreen.style.display = 'none';
     loginScreen.style.display = 'flex';
-    btnAuthAction.textContent = "חזרה";
 
-    codeStep.style.display = 'none';
+    codeStepBox.style.display = 'none';
     stipsIdInput.value = '';
     setLoginStatus('', '');
     stipsIdInput.focus();
   }
 
-  function updateHeaderAuthUI() {
+  function updateHeaderUI() {
     if (currentUser && sessionToken) {
-      userInfoPill.style.display = 'flex';
-      userPillImg.src = getAvatar(currentUser);
-      userPillName.textContent = currentUser.username || currentUser.id;
-      btnAuthAction.textContent = "התנתק";
+      btnLogout.style.display = 'block';
     } else {
-      userInfoPill.style.display = 'none';
-      btnAuthAction.textContent = "התחבר";
+      btnLogout.style.display = 'none';
     }
   }
 
-  // לחיצה על כפתור הסרגל העליון
-  btnAuthAction.addEventListener('click', function () {
-    if (loginScreen.style.display === 'flex') {
-      showChatView();
-    } else if (currentUser && sessionToken) {
-      logout();
-    } else {
-      showLoginView();
-    }
+  btnLogout.addEventListener('click', function () {
+    logout();
+  });
+
+  btnBackToChat.addEventListener('click', function () {
+    showChatView();
   });
 
   async function logout() {
@@ -128,7 +118,7 @@ document.addEventListener('DOMContentLoaded', function () {
     currentUser = null;
     localStorage.removeItem('stips_session_token');
     localStorage.removeItem('stips_current_user');
-    updateHeaderAuthUI();
+    updateHeaderUI();
   }
 
   // ─── 3. שליחת הודעות / כניסה למשתמש ───
@@ -192,7 +182,7 @@ document.addEventListener('DOMContentLoaded', function () {
       }
 
       if (!res.ok || !data.success) {
-        throw new Error(data.error || 'שגיאה בשליחת ההודעה');
+        throw new Error(data.error || 'שגיאה בשליחת המסר');
       }
 
       chatInput.value = '';
@@ -210,7 +200,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  // ─── 4. טעינת והצגת הודעות (תמונה ושם בצד ימין!) ───
+  // ─── 4. טעינת והצגת הודעות (החדשות למעלה + ימין) ───
   async function loadMessages() {
     try {
       const res = await fetch('/api/messages');
@@ -225,7 +215,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function renderMessages(messages) {
     if (!messages || messages.length === 0) {
-      messagesFeed.innerHTML = '<div class="empty-state">אין עדיין הודעות בצ\'אט. היה הראשון לכתוב!</div>';
+      messagesFeed.innerHTML = '<div class="empty-state">אין עדיין הודעות בלוח. היה הראשון לפרסם!</div>';
       return;
     }
 
@@ -237,7 +227,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const name = msg.username || 'משתמש';
       const text = msg.text || '';
 
-      // msg-author-side הוא הראשון ב-DOM, ולכן ב-RTL מופיע בצד ימין מוחלט
+      // msg-author-side מופיע ראשון ב-DOM, ולכן ב-RTL הוא בצד ימין מוחלט
       return `
         <div class="msg-card">
           <div class="msg-author-side">
@@ -251,7 +241,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }).join('');
   }
 
-  // ─── 5. חיבור לסטיפס והעתקה קלה ───
+  // ─── 5. העתקת קוד קלה בלחיצה אחת ───
   function copyCodeToClipboard() {
     if (!currentCode) return;
 
@@ -274,18 +264,18 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function onCopied() {
-      btnCopyCode.textContent = "✓ הקוד הועתק ללוח!";
-      btnCopyCode.classList.add('copied');
+      copyStatusHint.textContent = "✓ הקוד הועתק בהצלחה!";
+      copyStatusHint.style.color = "#4caf50";
       setTimeout(() => {
-        btnCopyCode.textContent = "📋 העתק קוד ללוח";
-        btnCopyCode.classList.remove('copied');
+        copyStatusHint.textContent = "📋 לחץ על הקוד להעתקה מהירה";
+        copyStatusHint.style.color = "#ff5252";
       }, 2500);
     }
   }
 
-  btnCopyCode.addEventListener('click', copyCodeToClipboard);
-  codeBoxClickable.addEventListener('click', copyCodeToClipboard);
+  codeCopyBox.addEventListener('click', copyCodeToClipboard);
 
+  // ─── 6. תהליך חיבור לסטיפס ───
   loginForm.addEventListener('submit', async function (e) {
     e.preventDefault();
     const idVal = stipsIdInput.value.trim();
@@ -312,9 +302,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
       displayCodeEl.textContent = currentCode;
       profileDirectLink.href = data.profileUrl || `https://stips.co.il/profile/${encodeURIComponent(currentStipsId)}`;
-      codeStep.style.display = 'block';
+      codeStepBox.style.display = 'block';
 
-      setLoginStatus('הקוד נוצר. העתק אותו בנגיעה והדבק בביו בסטיפס.', 'success');
+      setLoginStatus('הקוד מוכן! לחץ עליו להעתקה, הדבק בביו בסטיפס ולחץ אמת.', 'success');
     } catch (err) {
       setLoginStatus('שגיאה: ' + err.message, 'error');
     } finally {
@@ -331,7 +321,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     btnVerifyStips.disabled = true;
     btnVerifyStips.textContent = 'בודק בסטיפס...';
-    setLoginStatus('בודק את הפרופיל שלך בסטיפס...', '');
+    setLoginStatus('בודק את הביו שלך בסטיפס...', '');
 
     try {
       const res = await fetch('/api/verify-stips', {
@@ -351,11 +341,11 @@ document.addEventListener('DOMContentLoaded', function () {
       sessionToken = data.sessionToken;
       currentUser = data.user;
 
-      // שמירה קבועה בדפדפן - לא צריך להתחבר שוב לעולם!
+      // שמירה קבועה בדפדפן - נשאר מחובר תמיד
       localStorage.setItem('stips_session_token', sessionToken);
       localStorage.setItem('stips_current_user', JSON.stringify(currentUser));
 
-      setLoginStatus('החיבור הצליח! מעביר לצ\'אט...', 'success');
+      setLoginStatus('אימות הצליח! מעביר לצ\'אט...', 'success');
 
       setTimeout(() => {
         showChatView();
@@ -370,7 +360,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
-  // ─── 6. אימות סשן שקט ברקע (בלי למחוק במקרה של שגיאת שרת/רשת) ───
+  // ─── 7. בדיקת סשן שקטה ברקע (ללא איפוס על שגיאת רשת) ───
   async function verifySessionQuietly() {
     if (!sessionToken) return;
 
@@ -383,23 +373,21 @@ document.addEventListener('DOMContentLoaded', function () {
       if (res.ok && data.success && data.user) {
         currentUser = data.user;
         localStorage.setItem('stips_current_user', JSON.stringify(currentUser));
-        updateHeaderAuthUI();
+        updateHeaderUI();
       } else if (res.status === 401 || res.status === 403 || data.expired) {
-        // רק אם הטוקן פג תוקף באופן מפורש
         sessionToken = '';
         currentUser = null;
         localStorage.removeItem('stips_session_token');
         localStorage.removeItem('stips_current_user');
-        updateHeaderAuthUI();
+        updateHeaderUI();
       }
     } catch (e) {
-      // אם יש שגיאת רשת או שהשרת מתעורר - לא מוחקים את ההתחברות!
-      console.log('Server waking up or network slow, keeping session active.');
+      // שרת מתעורר או שגיאת רשת - לא מנתקים את המשתמש
     }
   }
 
   // הפעלה ראשונית
-  updateHeaderAuthUI();
+  updateHeaderUI();
   showChatView();
   verifySessionQuietly();
 });

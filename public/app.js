@@ -267,7 +267,7 @@ document.addEventListener('DOMContentLoaded', function () {
       copyStatusHint.textContent = "✓ הקוד הועתק בהצלחה!";
       copyStatusHint.style.color = "#4caf50";
       setTimeout(() => {
-        copyStatusHint.textContent = "📋 לחץ על הקוד להעתקה מהירה";
+        copyStatusHint.textContent = "לחץ להעתקה";
         copyStatusHint.style.color = "#ff5252";
       }, 2500);
     }
@@ -304,7 +304,7 @@ document.addEventListener('DOMContentLoaded', function () {
       profileDirectLink.href = data.profileUrl || `https://stips.co.il/profile/${encodeURIComponent(currentStipsId)}`;
       codeStepBox.style.display = 'block';
 
-      setLoginStatus('הקוד מוכן! לחץ עליו להעתקה, הדבק בביו בסטיפס ולחץ אמת.', 'success');
+      setLoginStatus('', '');
     } catch (err) {
       setLoginStatus('שגיאה: ' + err.message, 'error');
     } finally {

@@ -3,62 +3,41 @@ document.addEventListener('DOMContentLoaded', function () {
   let sessionToken = localStorage.getItem('stips_session_token') || '';
   let currentUser = null;
   let currentStipsId = '';
-  let generatedCode = '';
-  let pollTimer = null;
+  let currentCode = '';
+  let pollInterval = null;
 
-  // אלמנטים - מסך התחברות
-  const loginScreen   = document.getElementById('login-screen');
-  const authForm      = document.getElementById('auth-form');
-  const stipsInput    = document.getElementById('stips-input');
-  const btnGetCode    = document.getElementById('btn-get-code');
-  const codeBoxWrapper= document.getElementById('code-box-wrapper');
-  const codeText      = document.getElementById('code-text');
-  const stipsLink     = document.getElementById('stips-link');
-  const btnVerify     = document.getElementById('btn-verify');
-  const authStatus    = document.getElementById('auth-status');
+  // אלמנטים - סרגל עליון
+  const barTitle       = document.getElementById('bar-title');
+  const userInfoPill   = document.getElementById('user-info-pill');
+  const userPillImg    = document.getElementById('user-pill-img');
+  const userPillName   = document.getElementById('user-pill-name');
+  const btnAuthAction  = document.getElementById('btn-auth-action');
 
-  // אלמנטים - מסך לוח מסרים
-  const boardScreen   = document.getElementById('board-screen');
-  const myAvatar      = document.getElementById('my-avatar');
-  const myName        = document.getElementById('my-name');
-  const myTag         = document.getElementById('my-tag');
-  const btnLogout     = document.getElementById('btn-logout');
+  // אלמנטים - מסך צ'אט
+  const chatScreen       = document.getElementById('chat-screen');
+  const messagesFeed     = document.getElementById('messages-feed');
+  const bottomBoxWrapper = document.getElementById('bottom-box-wrapper');
+  const chatInput        = document.getElementById('chat-input');
+  const btnSend          = document.getElementById('btn-send');
 
-  // תיבת פרסום ופיד
-  const composerForm   = document.getElementById('composer-form');
-  const composerText   = document.getElementById('composer-text');
-  const composerStatus = document.getElementById('composer-status');
-  const btnPublish     = document.getElementById('btn-publish');
-  const feedContainer  = document.getElementById('feed-container');
+  // אלמנטים - מסך חיבור
+  const loginScreen         = document.getElementById('login-screen');
+  const loginForm           = document.getElementById('login-form');
+  const stipsIdInput        = document.getElementById('stips-id-input');
+  const btnSubmitId         = document.getElementById('btn-submit-id');
+  const codeStep            = document.getElementById('code-step');
+  const displayCodeEl       = document.getElementById('display-verification-code');
+  const profileDirectLink   = document.getElementById('profile-direct-link');
+  const btnVerifyStips      = document.getElementById('btn-verify-stips');
+  const loginStatus         = document.getElementById('login-status');
 
-  // עזר: אווטאר ברירת מחדל
-  function getAvatarUrl(user) {
+  // עזר: אווטאר בטוח (עיגול לבן / תמונה)
+  function getAvatar(user) {
     if (user && user.profilePic && user.profilePic.startsWith('http')) {
       return user.profilePic;
     }
     const name = (user && (user.username || user.id)) || 'U';
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=111827&color=ffffff&size=80`;
-  }
-
-  // עזר: תאריך ושעה נוחים בעברית
-  function formatTime(isoString) {
-    if (!isoString) return '';
-    try {
-      const d = new Date(isoString);
-      return d.toLocaleDateString('he-IL', {
-        day: 'numeric',
-        month: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    } catch (e) {
-      return '';
-    }
-  }
-
-  function setAuthStatus(msg, type) {
-    authStatus.textContent = msg;
-    authStatus.className = 'status-alert ' + (type || '');
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=ffffff&color=111111&size=60`;
   }
 
   function escapeHtml(str) {
@@ -70,145 +49,65 @@ document.addEventListener('DOMContentLoaded', function () {
       .replace(/'/g, '&#39;');
   }
 
-  // ─── 1. מעבר חלק בין מסכים ───
-  function showBoardView(user) {
-    currentUser = user;
+  function setLoginStatus(msg, type) {
+    loginStatus.textContent = msg;
+    loginStatus.className = 'login-status-msg ' + (type || '');
+  }
+
+  // ─── ניווט בין מסך הצ'אט למסך החיבור ───
+  function showChatView() {
     loginScreen.style.display = 'none';
-    boardScreen.style.display = 'flex';
+    chatScreen.style.display = 'flex';
+    barTitle.textContent = "צ'אט משתמשים";
 
-    myAvatar.src = getAvatarUrl(user);
-    myAvatar.onerror = () => { myAvatar.src = getAvatarUrl(null); };
-    myName.textContent = user.username || user.id;
-    myTag.textContent = '@' + (user.id || '');
-
-    // טעינת מסרים
+    updateHeaderAuthUI();
     loadMessages();
-    clearInterval(pollTimer);
-    pollTimer = setInterval(loadMessages, 8000);
+
+    // התחלת סנכרון הודעות כל 6 שניות
+    clearInterval(pollInterval);
+    pollInterval = setInterval(loadMessages, 6000);
   }
 
   function showLoginView() {
-    currentUser = null;
-    sessionToken = '';
-    localStorage.removeItem('stips_session_token');
-    clearInterval(pollTimer);
-
-    boardScreen.style.display = 'none';
+    clearInterval(pollInterval);
+    chatScreen.style.display = 'none';
     loginScreen.style.display = 'flex';
-    codeBoxWrapper.hidden = true;
-    stipsInput.value = '';
-    currentStipsId = '';
-    generatedCode = '';
-    setAuthStatus('', '');
+    barTitle.textContent = "חיבור לסטיפס";
+    btnAuthAction.textContent = "חזרה";
+
+    codeStep.style.display = 'none';
+    stipsIdInput.value = '';
+    setLoginStatus('', '');
+    stipsIdInput.focus();
   }
 
-  // ─── 2. אימות אוטומטי בכניסה (Persistent Login) ───
-  async function checkPersistentSession() {
-    if (!sessionToken) {
-      showLoginView();
-      return;
-    }
-
-    try {
-      const res = await fetch('/api/me', {
-        headers: { 'Authorization': 'Bearer ' + sessionToken }
-      });
-      const data = await res.json();
-
-      if (res.ok && data.success && data.user) {
-        showBoardView(data.user);
-      } else {
-        showLoginView();
-      }
-    } catch (err) {
-      showLoginView();
+  function updateHeaderAuthUI() {
+    if (currentUser) {
+      userInfoPill.style.display = 'flex';
+      userPillImg.src = getAvatar(currentUser);
+      userPillName.textContent = currentUser.username || currentUser.id;
+      btnAuthAction.textContent = "התנתק";
+    } else {
+      userInfoPill.style.display = 'none';
+      btnAuthAction.textContent = "התחבר";
     }
   }
 
-  // ─── 3. שלב א': יצירת קוד אימות ───
-  authForm.addEventListener('submit', async function (e) {
-    e.preventDefault();
-    const inputVal = stipsInput.value.trim();
-    if (!inputVal) return;
-
-    btnGetCode.disabled = true;
-    btnGetCode.textContent = 'מייצר קוד...';
-    setAuthStatus('', '');
-
-    try {
-      const res = await fetch('/api/generate-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stipsUsername: inputVal })
-      });
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'נכשל ביצירת קוד אימות');
-      }
-
-      currentStipsId = data.identifier || inputVal;
-      generatedCode = data.verificationCode;
-
-      codeText.textContent = generatedCode;
-      stipsLink.href = data.profileUrl || `https://stips.co.il/profile/${encodeURIComponent(currentStipsId)}`;
-      codeBoxWrapper.hidden = false;
-
-      setAuthStatus('הקוד נוצר. הדבק אותו בביו ולחץ "אמת וכנס".', 'success');
-    } catch (err) {
-      setAuthStatus('שגיאה: ' + err.message, 'error');
-    } finally {
-      btnGetCode.disabled = false;
-      btnGetCode.textContent = 'קבל קוד אימות';
+  // לחיצה על כפתור הסרגל העליון (התחבר / התנתק / חזרה)
+  btnAuthAction.addEventListener('click', function () {
+    if (loginScreen.style.display === 'flex') {
+      // חזרה לצ'אט
+      showChatView();
+    } else if (currentUser) {
+      // התנתקות
+      logout();
+    } else {
+      // כניסה למסך חיבור
+      showLoginView();
     }
   });
 
-  // ─── 4. שלב ב': אימות הפרופיל ───
-  btnVerify.addEventListener('click', async function () {
-    if (!currentStipsId || !generatedCode) {
-      setAuthStatus('אנא צור קוד תחילה.', 'error');
-      return;
-    }
-
-    btnVerify.disabled = true;
-    btnVerify.textContent = 'בודק פרופיל בסטיפס...';
-    setAuthStatus('בודק את הפרופיל שלך בסטיפס, אנא המתן...', '');
-
-    try {
-      const res = await fetch('/api/verify-stips', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          stipsUsername: currentStipsId,
-          verificationCode: generatedCode
-        })
-      });
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'האימות נכשל');
-      }
-
-      if (data.sessionToken) {
-        sessionToken = data.sessionToken;
-        localStorage.setItem('stips_session_token', sessionToken);
-      }
-
-      setAuthStatus('אימות הצליח! מעביר ללוח המסרים...', 'success');
-      setTimeout(() => {
-        showBoardView(data.user);
-      }, 350);
-
-    } catch (err) {
-      setAuthStatus('האימות נכשל: ' + err.message, 'error');
-    } finally {
-      btnVerify.disabled = false;
-      btnVerify.textContent = 'אמת וכנס ללוח';
-    }
-  });
-
-  // ─── 5. התנתקות ───
-  btnLogout.addEventListener('click', async function () {
+  async function logout() {
     try {
       await fetch('/api/logout', {
         method: 'POST',
@@ -219,65 +118,61 @@ document.addEventListener('DOMContentLoaded', function () {
         body: JSON.stringify({ sessionToken })
       });
     } catch (e) {}
-    showLoginView();
+    sessionToken = '';
+    currentUser = null;
+    localStorage.removeItem('stips_session_token');
+    updateHeaderAuthUI();
+  }
+
+  // ─── התנהגות ה-BOX התחתון לשליחת הודעות ───
+  // אם לא רשום -> מעביר למסך חיבור לסטיפס
+  // אם רשום -> פותח מקלדת ונותן לכתוב ולשלוח
+  function handleInputBoxInteraction(e) {
+    if (!currentUser || !sessionToken) {
+      e.preventDefault();
+      chatInput.blur();
+      showLoginView();
+      return false;
+    }
+    return true;
+  }
+
+  bottomBoxWrapper.addEventListener('click', function (e) {
+    if (!currentUser || !sessionToken) {
+      e.preventDefault();
+      showLoginView();
+    }
   });
 
-  // ─── 6. טעינת והצגת מסרים (Feed) ───
-  async function loadMessages() {
-    try {
-      const res = await fetch('/api/messages');
-      const data = await res.json();
-      if (res.ok && data.success) {
-        renderFeed(data.messages || []);
-      }
-    } catch (err) {
-      console.warn('Error loading messages:', err.message);
-    }
-  }
-
-  function renderFeed(messages) {
-    if (!messages || messages.length === 0) {
-      feedContainer.innerHTML = '<div class="empty-feed">עדיין לא פורסמו מסרים. היה הראשון לפרסם! ✨</div>';
-      return;
-    }
-
-    // הצגה מהמסר החדש ביותר לישן ביותר
-    const sorted = [...messages].reverse();
-
-    feedContainer.innerHTML = sorted.map(msg => {
-      const avatar = msg.profilePic || getAvatarUrl({ username: msg.username, id: msg.userId });
-      const timeStr = formatTime(msg.timestamp);
-
-      return `
-        <article class="message-card">
-          <img class="avatar" src="${escapeHtml(avatar)}" alt="${escapeHtml(msg.username)}"
-               onerror="this.src='https://ui-avatars.com/api/?name=U&background=111827&color=ffffff&size=72'">
-          <div class="message-body">
-            <div class="message-meta">
-              <span class="author-name">${escapeHtml(msg.username || 'משתמש')}</span>
-              <time class="message-time">${escapeHtml(timeStr)}</time>
-            </div>
-            <div class="message-text">${escapeHtml(msg.text)}</div>
-          </div>
-        </article>
-      `;
-    }).join('');
-  }
-
-  // ─── 7. פרסום מסר חדש ───
-  composerForm.addEventListener('submit', async function (e) {
-    e.preventDefault();
-    if (!sessionToken || !currentUser) {
+  chatInput.addEventListener('focus', function (e) {
+    if (!currentUser || !sessionToken) {
+      e.preventDefault();
+      chatInput.blur();
       showLoginView();
-      return;
     }
+  });
 
-    const text = composerText.value.trim();
+  // תמיכה ב-Enter במקלדת לשליחת הודעה
+  chatInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  btnSend.addEventListener('click', function (e) {
+    e.preventDefault();
+    sendMessage();
+  });
+
+  // ─── שליחת הודעה ───
+  async function sendMessage() {
+    if (!handleInputBoxInteraction({ preventDefault: () => {} })) return;
+
+    const text = chatInput.value.trim();
     if (!text) return;
 
-    btnPublish.disabled = true;
-    btnPublish.textContent = 'מפרסם...';
-    composerStatus.textContent = '';
+    btnSend.disabled = true;
 
     try {
       const res = await fetch('/api/messages', {
@@ -288,36 +183,180 @@ document.addEventListener('DOMContentLoaded', function () {
         },
         body: JSON.stringify({ text })
       });
+
       const data = await res.json();
 
       if (res.status === 401 || res.status === 403 || data.expired) {
+        sessionToken = '';
+        currentUser = null;
+        localStorage.removeItem('stips_session_token');
         showLoginView();
         return;
       }
 
       if (!res.ok || !data.success) {
-        throw new Error(data.error || 'שגיאה בפרסום המסר');
+        throw new Error(data.error || 'שגיאה בשליחת ההודעה');
       }
 
-      composerText.value = '';
-      composerStatus.textContent = 'פורסם בהצלחה!';
-      setTimeout(() => { composerStatus.textContent = ''; }, 2500);
-
+      chatInput.value = '';
       if (data.messages) {
-        renderFeed(data.messages);
+        renderMessages(data.messages);
       } else {
         loadMessages();
       }
 
     } catch (err) {
-      composerStatus.textContent = 'שגיאה: ' + err.message;
+      alert('שגיאה: ' + err.message);
     } finally {
-      btnPublish.disabled = false;
-      btnPublish.textContent = 'פרסם מסר';
-      composerText.focus();
+      btnSend.disabled = false;
+      chatInput.focus();
+    }
+  }
+
+  // ─── טעינת והצגת הודעות (החדשות למעלה!) ───
+  async function loadMessages() {
+    try {
+      const res = await fetch('/api/messages');
+      const data = await res.json();
+      if (res.ok && data.success) {
+        renderMessages(data.messages || []);
+      }
+    } catch (e) {
+      console.warn('loadMessages error:', e.message);
+    }
+  }
+
+  function renderMessages(messages) {
+    if (!messages || messages.length === 0) {
+      messagesFeed.innerHTML = '<div class="empty-state">אין עדיין הודעות בצ\'אט. היה הראשון לכתוב!</div>';
+      return;
+    }
+
+    // ההודעות החדשות ביותר מופיעות למעלה
+    const newestFirst = [...messages].reverse();
+
+    messagesFeed.innerHTML = newestFirst.map(msg => {
+      const avatarSrc = msg.profilePic || getAvatar({ username: msg.username, id: msg.userId });
+      const name = msg.username || 'משתמש';
+      const text = msg.text || '';
+
+      return `
+        <div class="msg-card">
+          <div class="msg-content">${escapeHtml(text)}</div>
+          <div class="msg-author">${escapeHtml(name)}</div>
+          <img class="msg-avatar" src="${escapeHtml(avatarSrc)}" alt=""
+               onerror="this.src='https://ui-avatars.com/api/?name=U&background=ffffff&color=111111&size=60'">
+        </div>
+      `;
+    }).join('');
+  }
+
+  // ─── תהליך חיבור לסטיפס ───
+  loginForm.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    const idVal = stipsIdInput.value.trim();
+    if (!idVal) return;
+
+    btnSubmitId.disabled = true;
+    btnSubmitId.textContent = 'מייצר קוד...';
+    setLoginStatus('', '');
+
+    try {
+      const res = await fetch('/api/generate-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stipsUsername: idVal })
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'נכשל ביצירת קוד אימות');
+      }
+
+      currentStipsId = data.identifier || idVal;
+      currentCode = data.verificationCode;
+
+      displayCodeEl.textContent = currentCode;
+      profileDirectLink.href = data.profileUrl || `https://stips.co.il/profile/${encodeURIComponent(currentStipsId)}`;
+      codeStep.style.display = 'block';
+
+      setLoginStatus('הקוד נוצר. הדבק אותו בביו שלך בסטיפס.', 'success');
+    } catch (err) {
+      setLoginStatus('שגיאה: ' + err.message, 'error');
+    } finally {
+      btnSubmitId.disabled = false;
+      btnSubmitId.textContent = 'קבל קוד אימות';
     }
   });
 
-  // התחלת בדיקה בכניסה לדף
-  checkPersistentSession();
+  btnVerifyStips.addEventListener('click', async function () {
+    if (!currentStipsId || !currentCode) {
+      setLoginStatus('נא לייצר קוד תחילה.', 'error');
+      return;
+    }
+
+    btnVerifyStips.disabled = true;
+    btnVerifyStips.textContent = 'בודק בסטיפס...';
+    setLoginStatus('בודק את הפרופיל שלך בסטיפס...', '');
+
+    try {
+      const res = await fetch('/api/verify-stips', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stipsUsername: currentStipsId,
+          verificationCode: currentCode
+        })
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'האימות נכשל');
+      }
+
+      sessionToken = data.sessionToken;
+      currentUser = data.user;
+      localStorage.setItem('stips_session_token', sessionToken);
+
+      setLoginStatus('החיבור הצליח! מעביר לצ\'אט...', 'success');
+
+      // החזרה מיידית לצ'אט ופתיחת תיבת ההקלדה
+      setTimeout(() => {
+        showChatView();
+        chatInput.focus();
+      }, 300);
+
+    } catch (err) {
+      setLoginStatus('האימות נכשל: ' + err.message, 'error');
+    } finally {
+      btnVerifyStips.disabled = false;
+      btnVerifyStips.textContent = 'אמת והתחבר';
+    }
+  });
+
+  // ─── בדיקת סשן קיים ברקע ───
+  async function initSession() {
+    if (sessionToken) {
+      try {
+        const res = await fetch('/api/me', {
+          headers: { 'Authorization': 'Bearer ' + sessionToken }
+        });
+        const data = await res.json();
+        if (res.ok && data.success && data.user) {
+          currentUser = data.user;
+          updateHeaderAuthUI();
+        } else {
+          sessionToken = '';
+          localStorage.removeItem('stips_session_token');
+          updateHeaderAuthUI();
+        }
+      } catch (e) {
+        // שגיאת רשת - ממשיכים כרגיל כצופה
+      }
+    }
+  }
+
+  // הפעלה ראשונית: הצגת הצ'אט מיד
+  showChatView();
+  initSession();
 });

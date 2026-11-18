@@ -309,13 +309,14 @@ document.addEventListener('DOMContentLoaded', function () {
     card.setAttribute('data-id', msg.id);
 
     const isOnline = activeOnlineUserIds.has(String(msg.userId));
+    const userAvatar = msg.avatar || msg.profilePic || '';
 
-    const avatarHtml = msg.avatar
-      ? `<img src="${escapeHtml(msg.avatar)}" alt="${escapeHtml(msg.username)}" class="msg-avatar ${isOnline ? 'online-now' : ''}" data-userid="${escapeHtml(msg.userId)}">`
+    const avatarHtml = userAvatar
+      ? `<img src="${escapeHtml(userAvatar)}" alt="${escapeHtml(msg.username)}" class="msg-avatar ${isOnline ? 'online-now' : ''}" data-userid="${escapeHtml(msg.userId)}">`
       : `<div class="msg-avatar-placeholder ${isOnline ? 'online-now' : ''}" data-userid="${escapeHtml(msg.userId)}">${escapeHtml((msg.username || '?')[0].toUpperCase())}</div>`;
 
     card.innerHTML = `
-      <div class="msg-author-side" data-userid="${escapeHtml(msg.userId)}" data-username="${escapeHtml(msg.username)}" data-avatar="${escapeHtml(msg.avatar || '')}" title="לחץ לשיחה פרטית">
+      <div class="msg-author-side" data-userid="${escapeHtml(msg.userId)}" data-username="${escapeHtml(msg.username)}" data-avatar="${escapeHtml(userAvatar)}" title="לחץ לשיחה פרטית">
         ${avatarHtml}
         <span class="msg-author">${escapeHtml(msg.username || 'משתמש')}</span>
       </div>
@@ -360,16 +361,13 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
       }
 
-      const shouldScroll = messagesFeed.scrollTop + messagesFeed.clientHeight >= messagesFeed.scrollHeight - 50;
+      // ההודעה האחרונה מוצגת בראש הצ'אט (למעלה)
+      const reversedMsgs = [...msgs].reverse();
 
       messagesFeed.innerHTML = '';
-      msgs.forEach(m => {
+      reversedMsgs.forEach(m => {
         messagesFeed.appendChild(renderPublicMessageCard(m));
       });
-
-      if (shouldScroll) {
-        messagesFeed.scrollTop = messagesFeed.scrollHeight;
-      }
     } catch (e) {
       if (!messagesFeed.querySelector('.stips-msg-card')) {
         messagesFeed.innerHTML = '<div class="empty-state">שגיאה בטעינת ההודעות. מרענן...</div>';
@@ -404,7 +402,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
       chatInput.value = '';
       await fetchPublicMessages();
-      messagesFeed.scrollTop = messagesFeed.scrollHeight;
+      messagesFeed.scrollTop = 0;
     } catch (err) {
       alert('שגיאה: ' + err.message);
     } finally {
@@ -430,25 +428,55 @@ document.addEventListener('DOMContentLoaded', function () {
         throw new Error(data.error || 'נכשל בטעינת שיחה פרטית');
       }
 
-      const msgs = data.messages || [];
-      if (msgs.length === 0) {
+      const rawMsgs = data.messages || data.conversation || [];
+      if (rawMsgs.length === 0) {
         dmMessagesFeed.innerHTML = '<div class="empty-state">אין עדיין הודעות בשיחה זו. כתוב משהו ראשון!</div>';
         return;
       }
 
       dmMessagesFeed.innerHTML = '';
-      msgs.forEach(m => {
-        const isMe = currentUser && (String(currentUser.id) === String(m.senderId));
+      rawMsgs.forEach(m => {
+        const senderId = m.senderId || m.fromId || m.userId;
+        const senderName = m.senderUsername || m.fromName || (String(senderId) === String(currentUser?.id) ? currentUser.username : (activeDmPartner?.username || 'משתמש'));
+        const senderPic = m.senderAvatar || m.profilePic || (String(senderId) === String(currentUser?.id) ? (currentUser.profilePic || '') : (activeDmPartner?.avatar || ''));
+        const isMe = currentUser && (String(currentUser.id) === String(senderId));
+
         const row = document.createElement('div');
         row.className = 'dm-bubble-row ' + (isMe ? 'me' : 'other');
+
+        // תמונת פרופיל של השולח (אם לא אני)
+        let avatarElHtml = '';
+        if (!isMe) {
+          avatarElHtml = senderPic
+            ? `<img src="${escapeHtml(senderPic)}" alt="${escapeHtml(senderName)}" class="bubble-avatar" title="${escapeHtml(senderName)}">`
+            : `<div class="bubble-avatar-placeholder" title="${escapeHtml(senderName)}">${escapeHtml((senderName || '?')[0].toUpperCase())}</div>`;
+        }
+
+        const bodyWrap = document.createElement('div');
+        bodyWrap.className = 'dm-bubble-body-wrap';
+
+        // הצגת השם מעל ההודעה בצד השולח (אם לא אני)
+        if (!isMe) {
+          const header = document.createElement('div');
+          header.className = 'group-msg-sender-header';
+          header.innerHTML = `<span class="group-msg-sender-name">${escapeHtml(senderName)}</span>`;
+          bodyWrap.appendChild(header);
+        }
 
         const bubble = document.createElement('div');
         bubble.className = 'dm-bubble';
         bubble.innerHTML = `
           <div>${escapeHtml(m.text)}</div>
-          <div class="msg-bottom-meta" style="color: ${isMe ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.5)'}; font-size: 0.7rem; margin-top: 3px;">${formatMsgDate(m.createdAt)}</div>
+          <div class="msg-bottom-meta" style="color: ${isMe ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.5)'}; font-size: 0.7rem; margin-top: 3px;">${formatMsgDate(m.createdAt || m.timestamp)}</div>
         `;
-        row.appendChild(bubble);
+        bodyWrap.appendChild(bubble);
+
+        if (avatarElHtml) {
+          const avWrap = document.createElement('div');
+          avWrap.innerHTML = avatarElHtml;
+          row.appendChild(avWrap.firstElementChild);
+        }
+        row.appendChild(bodyWrap);
         dmMessagesFeed.appendChild(row);
       });
 

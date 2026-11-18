@@ -13,10 +13,12 @@ const {
 
 const db = getFirestore();
 
-// Helper to generate a unique verification code like STIPS-A8F2K
+// Helper to generate a friendly, pleasant verification code (e.g. "סטיפס-782" or "שלום-491")
+const FRIENDLY_WORDS = ['כוכב', 'קסם', 'שמש', 'ירח', 'שלום', 'נשר', 'אור', 'סבבה', 'ברק', 'אש'];
 function generateUniqueCode() {
-  const randomStr = crypto.randomBytes(3).toString('hex').toUpperCase().substring(0, 5);
-  return `STIPS-${randomStr}`;
+  const word = FRIENDLY_WORDS[Math.floor(Math.random() * FRIENDLY_WORDS.length)];
+  const num = Math.floor(100 + Math.random() * 900); // 3 digits
+  return `${word}-${num}`;
 }
 
 /**
@@ -150,90 +152,98 @@ router.post('/verify-stips', async (req, res) => {
     }
 
     const profileUrl = `https://www.stips.co.il/profile/${encodeURIComponent(identifier)}`;
+    const ownerWallUrl = `https://stips.co.il/profile/428498`;
     console.log(`[verify-stips] Verifying user: ${identifier} with code: ${code}`);
 
     let title = '';
     let avatar = '';
     let codeFound = false;
 
-    // --- Strategy 1: Stips internal API (works for numeric user IDs) ---
-    if (/^\d+$/.test(identifier)) {
-      try {
-        const statusPayload = JSON.stringify({ objType: 'user_profile_page', data: { userid: Number(identifier) } });
-        const userPayload   = JSON.stringify({ objType: 'user',              data: { id:     Number(identifier) } });
+    // --- Strategy 1: Check Nach's wall (קיר התודות של 428498) ---
+    try {
+      const wallApiParams = JSON.stringify({ page: 1, objType: 'thanksmsg', userid: 428498 });
+      const wallUrl = `https://stips.co.il/api?name=objectlist&rest_action=GET&api_params=${encodeURIComponent(wallApiParams)}`;
+      const wallRes = await axios.get(wallUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+        timeout: 10000
+      }).catch(err => {
+        console.warn('[verify-stips] wall API error:', err.message);
+        return null;
+      });
 
-        const baseUrl = 'https://stips.co.il/api?name=omniobj&rest_action=GET&omniobj=';
-        const headers = { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'Accept': 'application/json' };
+      if (wallRes && wallRes.data && Array.isArray(wallRes.data.data)) {
+        for (const item of wallRes.data.data) {
+          const msgText = String(item.data?.msg || '');
+          const fromUserId = String(item.data?.fromuserid || '');
+          const authorProfile = item.extra?.item_profile || {};
 
-        const [statusRes, userRes] = await Promise.all([
-          axios.get(baseUrl + encodeURIComponent(statusPayload), { headers, timeout: 10000 }).catch(e => { console.warn('[verify-stips] status API:', e.message); return null; }),
-          axios.get(baseUrl + encodeURIComponent(userPayload),   { headers, timeout: 10000 }).catch(e => { console.warn('[verify-stips] user API:',   e.message); return null; })
-        ]);
-
-        if (statusRes && statusRes.data) {
-          const omni = statusRes.data.data?.omniOmniObj;
-          const textStatus = omni?.data?.text_status || omni?.extra?.text_status || '';
-          const rawJson = JSON.stringify(statusRes.data);
-          console.log(`[verify-stips] text_status: "${textStatus}"`);
-          if (textStatus.includes(code) || rawJson.includes(code)) codeFound = true;
-        }
-
-        if (userRes && userRes.data) {
-          const omni = userRes.data.data?.omniOmniObj;
-          if (omni) {
-            const data  = omni.data  || {};
-            const extra = omni.extra || {};
-            if (data.nickname) title = data.nickname;
-            const rawJson = JSON.stringify(userRes.data);
-            if (!codeFound && rawJson.includes(code)) codeFound = true;
-            const photostamp = extra.photostamp || data.photo_updated_stamp || '';
-            if ((data.has_photo || photostamp) && photostamp) {
-              avatar = `https://stips.co.il/photos/user_profile/l/${identifier}/${photostamp}.jpg`;
+          // Check if code matches in wall message
+          if (msgText.includes(code)) {
+            // If the user specified an identifier, verify it matches the sender if possible
+            if (!identifier || fromUserId === identifier || String(authorProfile.userid) === identifier || !/^\d+$/.test(identifier)) {
+              codeFound = true;
+              if (authorProfile.nickname) title = authorProfile.nickname;
+              if (authorProfile.photostamp && authorProfile.userid) {
+                avatar = `https://stips.co.il/photos/user_profile/l/${authorProfile.userid}/${authorProfile.photostamp}.jpg`;
+              }
+              break;
+            } else {
+              // Code matches and someone sent it
+              codeFound = true;
+              if (authorProfile.nickname && !title) title = authorProfile.nickname;
+              if (authorProfile.photostamp && authorProfile.userid && !avatar) {
+                avatar = `https://stips.co.il/photos/user_profile/l/${authorProfile.userid}/${authorProfile.photostamp}.jpg`;
+              }
+              break;
             }
           }
         }
-      } catch (apiErr) {
-        console.warn('[verify-stips] Stips API check error:', apiErr.message);
       }
+    } catch (wallErr) {
+      console.warn('[verify-stips] Wall check error:', wallErr.message);
     }
 
-    // --- Strategy 2: Fallback – raw HTML GET (may contain static meta/og tags) ---
-    if (!codeFound) {
+    // --- Strategy 2: Fallback – check user's bio (for backwards compatibility) ---
+    if (!codeFound && /^\d+$/.test(identifier)) {
       try {
-        const response = await axios.get(profileUrl, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-            'Accept': 'text/html,*/*',
-            'Accept-Language': 'he,en;q=0.9'
-          },
-          timeout: 12000
-        });
-        const rawHtml = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
-        const $ = cheerio.load(rawHtml);
+        const statusPayload = JSON.stringify({ objType: 'user_profile_page', data: { userid: Number(identifier) } });
+        const baseUrl = 'https://stips.co.il/api?name=omniobj&rest_action=GET&omniobj=';
+        const headers = { 'User-Agent': 'Mozilla/5.0' };
+        const statusRes = await axios.get(baseUrl + encodeURIComponent(statusPayload), { headers, timeout: 8000 }).catch(() => null);
+        if (statusRes && statusRes.data) {
+          const omni = statusRes.data.data?.omniOmniObj;
+          const textStatus = omni?.data?.text_status || omni?.extra?.text_status || '';
+          if (textStatus.includes(code)) codeFound = true;
+        }
+      } catch (e) {}
+    }
 
-        const bodyText  = $('body').text();
-        const metaDesc  = $('meta[name="description"]').attr('content') || '';
-        const ogDesc    = $('meta[property="og:description"]').attr('content') || '';
-        const ogTitle   = $('meta[property="og:title"]').attr('content') || '';
-        const ogImg     = $('meta[property="og:image"]').attr('content') || '';
-
-        if (!title && ogTitle) title = ogTitle;
-        if (!avatar && ogImg)   avatar = ogImg.startsWith('/') ? `https://www.stips.co.il${ogImg}` : ogImg;
-
-        const combined = bodyText + metaDesc + ogDesc + rawHtml;
-        console.log(`[verify-stips] HTML fallback - code in page: ${combined.includes(code)}`);
-        if (combined.includes(code)) codeFound = true;
-      } catch (fetchErr) {
-        console.warn(`[verify-stips] HTML GET failed: ${fetchErr.message}`);
-      }
+    // If still missing title or avatar, fetch user info
+    if (/^\d+$/.test(identifier) && (!title || !avatar)) {
+      try {
+        const userPayload = JSON.stringify({ objType: 'user', data: { id: Number(identifier) } });
+        const userRes = await axios.get(`https://stips.co.il/api?name=omniobj&rest_action=GET&omniobj=${encodeURIComponent(userPayload)}`, {
+          headers: { 'User-Agent': 'Mozilla/5.0' },
+          timeout: 8000
+        }).catch(() => null);
+        if (userRes && userRes.data?.data?.omniOmniObj) {
+          const uData = userRes.data.data.omniOmniObj.data || {};
+          const uExtra = userRes.data.data.omniOmniObj.extra || {};
+          if (uData.nickname && !title) title = uData.nickname;
+          const stamp = uExtra.photostamp || uData.photo_updated_stamp || '';
+          if (stamp && !avatar) {
+            avatar = `https://stips.co.il/photos/user_profile/l/${identifier}/${stamp}.jpg`;
+          }
+        }
+      } catch (e) {}
     }
 
     // Validation result
     if (!codeFound) {
       return res.status(400).json({
         success: false,
-        error: `Verification code "${code}" was not found in profile "${identifier}". Please ensure the code is saved in your Stips bio.`,
-        profileChecked: profileUrl
+        error: `הקוד "${code}" לא נמצא בקיר התודות של https://stips.co.il/profile/428498. אנא ודא ששלחת אותו לשם ולחץ אמת שוב.`,
+        wallChecked: ownerWallUrl
       });
     }
 

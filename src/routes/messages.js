@@ -276,6 +276,7 @@ router.get('/dm/:targetUserId', async (req, res) => {
     return res.json({
       success: true,
       conversation,
+      messages: conversation,
       targetOnline: onlineUsers.has(targetId)
     });
   } catch (err) {

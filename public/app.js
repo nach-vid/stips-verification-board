@@ -854,7 +854,6 @@ document.addEventListener('DOMContentLoaded', function () {
   btnSubmitId.addEventListener('click', requestNewCode);
 
   // כפתור "קבל קוד חדש"
-  const btnGetNewCode = document.getElementById('btn-get-new-code');
   if (btnGetNewCode) {
     btnGetNewCode.addEventListener('click', function () {
       codeStepBox.style.display = 'none';

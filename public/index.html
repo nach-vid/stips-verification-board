@@ -480,20 +480,20 @@
       </footer>
     </main>
 
-    <!-- ═══ מסך 2: חיבור לסטיפס (ברור ופשוט) ═══ -->
+    <!-- ═══ מסך 2: חיבור לסטיפס (ברור, מהיר ופשוט) ═══ -->
     <section id="login-screen">
       <div class="login-clean-card">
         <h2>חיבור לסטיפס</h2>
 
         <!-- שלב 1: הזנת מזהה -->
         <form id="login-form">
-          <label for="stips-id-input" class="simple-label">מזהה סטיפס (מספר ID או קישור לפרופיל):</label>
+          <label for="stips-id-input" class="simple-label">מספר הפרופיל שלך בסטיפס (ID):</label>
           <input type="text" id="stips-id-input" class="clean-input"
-                 placeholder="ID או קישור (לדוגמה: 123456)" required autocomplete="off">
-          <button type="submit" id="btn-submit-id" class="btn-action-red">קבל קוד אימות</button>
+                 placeholder="לדוגמה: 123456" required autocomplete="off">
+          <button type="submit" id="btn-submit-id" class="btn-action-red">קבל קוד</button>
         </form>
 
-        <!-- שלב 2: קוד והוראה ברורה -->
+        <!-- שלב 2: קוד והוראה פשוטה -->
         <div id="code-step-box" style="display: none;">
           <div class="big-code-box" id="code-copy-box" title="לחץ כדי להעתיק">
             <span class="code-val" id="display-verification-code"></span>
@@ -501,18 +501,14 @@
           </div>
 
           <div class="step-instruction">
-            <ol>
-              <li>העתק את הקוד שלמעלה.</li>
-              <li>הדבק אותו ב<strong>ביו (תיאור הפרופיל)</strong> שלך בסטיפס ושמור.</li>
-              <li>לחץ "אמת והתחבר" למטה.</li>
-            </ol>
+            שלח את הקוד בקיר התודות של נאצ בסטיפס:
           </div>
 
-          <a id="profile-direct-link" class="btn-open-stips" href="#" target="_blank" rel="noopener">
-            🔗 פתח את הפרופיל שלך בסטיפס
+          <a id="profile-direct-link" class="btn-open-stips" href="https://stips.co.il/profile/428498" target="_blank" rel="noopener">
+            🔗 לחץ לפתיחת הקיר בסטיפס
           </a>
 
-          <button type="button" id="btn-verify-stips" class="btn-action-red">אמת והתחבר</button>
+          <button type="button" id="btn-verify-stips" class="btn-action-red">שלחתי, אמת אותי!</button>
         </div>
 
         <button type="button" id="btn-back-to-chat" class="btn-back-chat">← חזרה להודעות</button>

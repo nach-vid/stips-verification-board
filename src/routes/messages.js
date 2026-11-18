@@ -445,10 +445,14 @@ router.post('/groups/:groupId/messages', async (req, res) => {
 
     const newMsg = {
       id: 'grp_msg_' + Date.now(),
+      senderId: myId,
       userId: myId,
+      senderUsername: user.username || myId,
       username: user.username || myId,
-      profilePic: user.profilePic || '',
+      senderAvatar: user.profilePic || '',
+      avatar: user.profilePic || '',
       text: text,
+      createdAt: new Date().toISOString(),
       timestamp: new Date().toISOString()
     };
 

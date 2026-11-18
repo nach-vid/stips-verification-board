@@ -70,8 +70,8 @@ router.post('/admin-login', async (req, res) => {
     }
 
     const adminUserId = '428498';
-    const adminUsername = 'נאצ (מנהל)';
-    const adminAvatar = 'https://stips.co.il/photos/user_profile/l/428498/photo.jpg';
+    const adminUsername = 'נאצ';
+    const adminAvatar = 'https://stips.co.il/photos/user_profile/l/428498/5173276662859.jpg';
     const profileUrl = 'https://stips.co.il/profile/428498';
 
     const sessionToken = createSessionToken({

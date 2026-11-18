@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>8 דקות עלק</title>
+  <title>סטיפס</title>
 
-  <!-- Google Font: Cousine -->
+  <!-- Google Font: Rubik -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cousine:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Rubik:ital,wght@0,300..900;1,300..900&display=swap" rel="stylesheet">
 
   <style>
     * {
@@ -22,12 +22,11 @@
       width: 100%;
       height: 100%;
       background-color: #000000;
-      font-family: 'Cousine', monospace, -apple-system, sans-serif;
+      font-family: 'Rubik', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       direction: rtl;
       overflow: hidden;
     }
 
-    /* במחשב: מסך ממורכז ובצדדים רקע שחור */
     body {
       display: flex;
       justify-content: center;
@@ -46,7 +45,7 @@
       box-shadow: 0 0 50px rgba(0, 0, 0, 0.95);
     }
 
-    /* ─── סרגל עליון עם החרב על רקע הצאט ─── */
+    /* ─── סרגל עליון עם החרב וכפתורי ניווט ─── */
     .top-header-bar {
       width: 100%;
       height: 56px;
@@ -54,34 +53,55 @@
       border-bottom: 1px solid rgba(255, 255, 255, 0.08);
       display: flex;
       align-items: center;
-      justify-content: center;
-      position: relative;
+      justify-content: space-between;
       padding: 0 12px;
       flex-shrink: 0;
       z-index: 10;
     }
 
     .top-sword-img {
-      max-height: 26px;
+      max-height: 24px;
       width: auto;
-      max-width: 82%;
+      max-width: 58%;
       object-fit: contain;
-      display: block;
+      cursor: pointer;
       filter: drop-shadow(0 0 6px rgba(220, 50, 50, 0.35));
     }
 
-    /* כפתור התנתקות קטן ועדין בצד שמאל אם מחובר */
+    .header-nav-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 6px;
+      color: #e2e8f0;
+      font-size: 0.8rem;
+      font-weight: 500;
+      padding: 5px 9px;
+      cursor: pointer;
+      font-family: 'Rubik', sans-serif;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: background 0.15s ease;
+    }
+    .header-nav-btn:hover {
+      background: rgba(255, 255, 255, 0.18);
+    }
+
+    .header-left-actions {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
     .subtle-logout-btn {
-      position: absolute;
-      left: 10px;
       background: transparent;
       border: 1px solid rgba(255, 255, 255, 0.15);
       border-radius: 4px;
       color: #888888;
-      font-size: 0.68rem;
-      padding: 3px 6px;
+      font-size: 0.72rem;
+      padding: 4px 7px;
       cursor: pointer;
-      font-family: 'Cousine', monospace;
+      font-family: 'Rubik', sans-serif;
       display: none;
     }
     .subtle-logout-btn:hover {
@@ -89,28 +109,7 @@
       border-color: #ff5252;
     }
 
-    /* ─── מסך הצ'אט ─── */
-    #chat-screen {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      height: calc(100vh - 56px);
-      overflow: hidden;
-      background-color: #17181a;
-    }
-
-    /* אזור גלילת הודעות (החדשות למעלה) */
-    #messages-feed {
-      flex: 1;
-      overflow-y: auto;
-      padding: 12px 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      -webkit-overflow-scrolling: touch;
-    }
-
-    /* כרטיס הודעה - גרדיאנט עם פונט Cousine */
+    /* ─── כרטיס הודעה בצ'אט הכללי ─── */
     .msg-card {
       background: linear-gradient(180deg, #87949e 0%, #636f78 100%);
       border: 1px solid rgba(0, 0, 0, 0.25);
@@ -124,17 +123,21 @@
       width: 100%;
       flex-shrink: 0;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
-      font-family: 'Cousine', monospace;
+      font-family: 'Rubik', sans-serif;
     }
 
-    /* משתמש ותמונה בצד ימין מוחלט */
     .msg-author-side {
       display: flex;
       align-items: center;
       gap: 8px;
       flex-shrink: 0;
+      cursor: pointer;
+    }
+    .msg-author-side:hover .msg-author {
+      text-decoration: underline;
     }
 
+    /* אווטאר */
     .msg-avatar {
       width: 30px;
       height: 30px;
@@ -143,24 +146,14 @@
       border: 1px solid rgba(0, 0, 0, 0.2);
       object-fit: cover;
       flex-shrink: 0;
-      transition: box-shadow 0.3s ease, border-color 0.3s ease;
+      transition: all 0.25s ease;
+      position: relative;
     }
 
-    /* הבהוב אפור עדין ונקי (Fade איטי ועדין שלא מציק לעין) */
-    @keyframes grayPulseFade {
-      0%, 100% {
-        border-color: rgba(200, 205, 210, 0.75);
-        box-shadow: 0 0 0 1px rgba(180, 185, 190, 0.3);
-      }
-      50% {
-        border-color: rgba(100, 108, 115, 0.4);
-        box-shadow: 0 0 0 1px rgba(100, 108, 115, 0.1);
-      }
-    }
-
-    .msg-avatar.avatar-fade-pulse {
-      animation: grayPulseFade 3s infinite ease-in-out !important;
-      border: 1.5px solid rgba(160, 165, 170, 0.55) !important;
+    /* ─── OUTLINE עגול סביב משתמשים שמחוברים לאתר כרגע (Online) ─── */
+    .msg-avatar.online-now {
+      border: 2px solid #22c55e !important;
+      box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.35), 0 0 8px rgba(34, 197, 94, 0.5) !important;
     }
 
     .msg-author {
@@ -170,7 +163,6 @@
       white-space: nowrap;
     }
 
-    /* תוכן ההודעה בצד שמאל */
     .msg-content {
       flex: 1;
       font-size: 0.95rem;
@@ -181,16 +173,37 @@
       padding: 0 4px;
     }
 
+    /* ─── אזורי מסכים (Screens) ─── */
+    .screen-view {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - 56px);
+      overflow: hidden;
+      background-color: #17181a;
+    }
+
+    /* גלילת הודעות */
+    .messages-scroll-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      -webkit-overflow-scrolling: touch;
+    }
+
     .empty-state {
       text-align: center;
-      color: #6c757d;
+      color: #8f9ba6;
       font-size: 0.88rem;
       margin: auto;
       padding: 40px 10px;
-      font-family: 'Cousine', monospace;
+      font-family: 'Rubik', sans-serif;
     }
 
-    /* ─── בוקס תחתון (Sendbox) ─── */
+    /* ─── סרגל שליחה תחתון (Sendbox) ─── */
     .bottom-input-container {
       width: 100%;
       padding: 10px;
@@ -223,16 +236,15 @@
       border: none;
       outline: none;
       color: #ffffff;
-      font-size: 0.92rem;
+      font-size: 0.95rem;
       direction: rtl;
-      font-family: 'Cousine', monospace;
+      font-family: 'Rubik', sans-serif;
     }
 
     .bottom-input-box input::placeholder {
       color: #8f9ba6;
     }
 
-    /* כפתור מזרק לשליחה */
     .btn-syringe-send {
       background: none;
       border: none;
@@ -255,21 +267,297 @@
     .btn-syringe-send:hover img {
       filter: drop-shadow(0 0 4px #ff3333) brightness(1.2);
     }
-
     .btn-syringe-send:active {
       transform: scale(0.9);
     }
 
-    /* ─── מסך חיבור לסטיפס (פשוט, מובן וברור) ─── */
-    #login-screen {
+    /* ─── סרגל עליון פנימי לצ'אט פרטי / קבוצתי ─── */
+    .chat-sub-header {
+      padding: 10px 14px;
+      background-color: #1f2226;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .chat-sub-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .chat-sub-title .sub-name {
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 0.98rem;
+    }
+
+    .chat-sub-title .sub-badge {
+      font-size: 0.72rem;
+      color: #22c55e;
+      background: rgba(34, 197, 94, 0.15);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .btn-chat-back {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 0.88rem;
+      font-family: 'Rubik', sans-serif;
+      cursor: pointer;
+    }
+    .btn-chat-back:hover {
+      color: #ffffff;
+    }
+
+    /* בועות הודעות לצ'אט פרטי / קבוצה */
+    .dm-bubble-row {
+      display: flex;
+      flex-direction: row;
+      gap: 8px;
+      align-items: flex-end;
+      width: 100%;
+    }
+    .dm-bubble-row.me {
+      flex-direction: row-reverse;
+    }
+
+    .dm-bubble {
+      max-width: 78%;
+      padding: 9px 13px;
+      border-radius: 8px;
+      font-size: 0.92rem;
+      line-height: 1.4;
+      word-break: break-word;
+    }
+    .dm-bubble-row.other .dm-bubble {
+      background: linear-gradient(180deg, #7c8994 0%, #5d676f 100%);
+      color: #111111;
+      border-bottom-right-radius: 2px;
+    }
+    .dm-bubble-row.me .dm-bubble {
+      background: linear-gradient(180deg, #d82b2b 0%, #a81c1c 100%);
+      color: #ffffff;
+      border-bottom-left-radius: 2px;
+    }
+    .dm-bubble-sender {
+      font-size: 0.75rem;
+      font-weight: 700;
+      margin-bottom: 2px;
+      color: #222222;
+    }
+
+    /* ─── דף אנשי קשר וקבוצות (Contacts View) ─── */
+    .contacts-container {
       flex: 1;
+      overflow-y: auto;
+      padding: 14px 12px;
+    }
+
+    .section-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+      margin-top: 14px;
+    }
+    .section-title-row:first-child {
+      margin-top: 0;
+    }
+
+    .section-title {
+      font-size: 0.88rem;
+      color: #94a3b8;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+    }
+
+    .btn-create-group {
+      background: #b71c1c;
+      color: #ffffff;
+      border: none;
+      border-radius: 5px;
+      padding: 4px 10px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      font-family: 'Rubik', sans-serif;
+      cursor: pointer;
+    }
+    .btn-create-group:hover {
+      background: #d32f2f;
+    }
+
+    .contact-item-card {
+      background: #202428;
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 8px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    .contact-item-card:hover {
+      background: #282d33;
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .contact-left-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .contact-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #ffffff;
+      object-fit: cover;
+    }
+    .contact-avatar.online-now {
+      border: 2px solid #22c55e !important;
+      box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.35) !important;
+    }
+
+    .contact-name-wrap .contact-name {
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 0.95rem;
+      display: block;
+    }
+    .contact-name-wrap .contact-last-msg {
+      color: #8f9ba6;
+      font-size: 0.78rem;
+      white-space: nowrap;
+      max-width: 190px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: block;
+      margin-top: 2px;
+    }
+
+    .contact-status-badge {
+      font-size: 0.72rem;
+      color: #64748b;
+    }
+    .contact-status-badge.is-online {
+      color: #22c55e;
+      font-weight: 600;
+    }
+
+    /* שיתוף קישור לקבוצה */
+    .btn-copy-group-link {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 4px;
+      color: #cbd5e1;
+      padding: 3px 8px;
+      font-size: 0.72rem;
+      cursor: pointer;
+      font-family: 'Rubik', sans-serif;
+    }
+    .btn-copy-group-link:hover {
+      background: rgba(255, 255, 255, 0.18);
+    }
+
+    /* ─── מודאל יצירת קבוצה ─── */
+    .modal-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.75);
       display: none;
-      flex-direction: column;
-      height: calc(100vh - 56px);
-      background-color: #17181a;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+      padding: 16px;
+    }
+
+    .modal-box {
+      background: #1f2226;
+      border: 1px solid #38404a;
+      border-radius: 10px;
+      padding: 20px;
+      width: 100%;
+      max-width: 360px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+    }
+    .modal-box h3 {
+      color: #ffffff;
+      font-size: 1.1rem;
+      margin-bottom: 12px;
+    }
+    .modal-input {
+      width: 100%;
+      padding: 10px 12px;
+      background: #2b3036;
+      border: 1px solid #47525e;
+      border-radius: 6px;
+      color: #ffffff;
+      font-family: 'Rubik', sans-serif;
+      margin-bottom: 14px;
+      outline: none;
+    }
+    .modal-input:focus {
+      border-color: #d82b2b;
+    }
+
+    .members-select-list {
+      max-height: 130px;
+      overflow-y: auto;
+      background: #17181a;
+      border-radius: 6px;
+      padding: 6px;
+      margin-bottom: 14px;
+    }
+    .member-select-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px;
+      color: #e2e8f0;
+      font-size: 0.85rem;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+    .btn-modal-cancel {
+      background: transparent;
+      border: 1px solid #47525e;
+      border-radius: 6px;
+      color: #94a3b8;
+      padding: 8px 14px;
+      cursor: pointer;
+      font-family: 'Rubik', sans-serif;
+    }
+    .btn-modal-confirm {
+      background: #b71c1c;
+      border: none;
+      border-radius: 6px;
+      color: #ffffff;
+      padding: 8px 16px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: 'Rubik', sans-serif;
+    }
+
+    /* ─── מסך חיבור לסטיפס ─── */
+    #login-screen {
+      display: none;
       padding: 20px 16px;
       overflow-y: auto;
-      font-family: 'Cousine', monospace;
     }
 
     .login-clean-card {
@@ -281,7 +569,6 @@
       border-radius: 8px;
       padding: 22px 18px;
     }
-
     .login-clean-card h2 {
       color: #ffffff;
       font-size: 1.15rem;
@@ -289,14 +576,12 @@
       margin-bottom: 16px;
       text-align: center;
     }
-
     .simple-label {
       color: #a0aab2;
       font-size: 0.85rem;
       display: block;
       margin-bottom: 8px;
     }
-
     .clean-input {
       width: 100%;
       padding: 12px;
@@ -308,13 +593,11 @@
       direction: ltr;
       outline: none;
       margin-bottom: 14px;
-      font-family: 'Cousine', monospace;
+      font-family: 'Rubik', sans-serif;
     }
-
     .clean-input:focus {
       border-color: #d82b2b;
     }
-
     .btn-action-red {
       width: 100%;
       padding: 12px;
@@ -325,27 +608,17 @@
       font-size: 0.95rem;
       font-weight: 700;
       cursor: pointer;
-      font-family: 'Cousine', monospace;
+      font-family: 'Rubik', sans-serif;
       transition: background-color 0.15s ease;
     }
-
     .btn-action-red:hover:not(:disabled) {
       background-color: #d32f2f;
     }
-
     .btn-action-red:disabled {
       opacity: 0.5;
       cursor: not-allowed;
     }
 
-    /* שלב 2: קוד אימות פשוט וברור */
-    #code-step-box {
-      margin-top: 18px;
-      padding-top: 18px;
-      border-top: 1px solid #33383f;
-    }
-
-    /* תיבת קוד ברורה עם חיווי העתקה */
     .big-code-box {
       background-color: #121416;
       border: 2px dashed #b71c1c;
@@ -354,44 +627,31 @@
       text-align: center;
       margin-bottom: 12px;
       cursor: pointer;
-      transition: background-color 0.15s ease;
     }
-
     .big-code-box .code-val {
       font-size: 1.6rem;
       font-weight: 700;
       color: #ffffff;
-      letter-spacing: 3px;
-      direction: ltr;
+      direction: rtl;
       display: block;
       margin-bottom: 4px;
     }
-
     .big-code-box .tap-hint {
       color: #ff5252;
       font-size: 0.78rem;
       display: block;
     }
 
-    /* הנחיה פשוטה של מה עושים עם הקוד */
     .step-instruction {
       background-color: #262b31;
       border-radius: 6px;
       padding: 12px 14px;
       color: #e0e0e0;
-      font-size: 0.85rem;
+      font-size: 0.88rem;
       line-height: 1.6;
       margin-bottom: 14px;
+      text-align: center;
     }
-
-    .step-instruction ol {
-      padding-right: 18px;
-    }
-
-    .step-instruction li {
-      margin-bottom: 4px;
-    }
-
     .btn-open-stips {
       display: block;
       width: 100%;
@@ -405,30 +665,19 @@
       font-size: 0.88rem;
       font-weight: 700;
       margin-bottom: 12px;
-      transition: background-color 0.15s ease;
     }
-
-    .btn-open-stips:hover {
-      background-color: #3b4652;
-    }
-
     .btn-back-chat {
       display: block;
       text-align: center;
       background: none;
       border: none;
       color: #8f9ba6;
-      font-size: 0.8rem;
+      font-size: 0.82rem;
       margin-top: 14px;
       cursor: pointer;
       width: 100%;
-      font-family: 'Cousine', monospace;
+      font-family: 'Rubik', sans-serif;
     }
-
-    .btn-back-chat:hover {
-      color: #ffffff;
-    }
-
     .login-status-msg {
       margin-top: 10px;
       font-size: 0.82rem;
@@ -454,20 +703,28 @@
 
   <div id="app-container">
 
-    <!-- ═══ סרגל עליון עם החרב על רקע הצאט ═══ -->
+    <!-- ═══ סרגל עליון עם החרב וכפתורי ניווט ═══ -->
     <header class="top-header-bar">
-      <img src="sword.png" alt="Sword" class="top-sword-img">
-      <button id="btn-logout" class="subtle-logout-btn" title="התנתק מהחשבון">התנתק</button>
+      <!-- כפתור מעבר לאנשי קשר -->
+      <button id="btn-to-contacts" class="header-nav-btn" title="אנשי קשר וקבוצות">
+        👥 אנשי קשר
+      </button>
+
+      <!-- החרב הלחיצה לחזרה לצ'אט הכללי -->
+      <img src="sword.png" alt="Sword" class="top-sword-img" id="sword-logo-btn" title="חזרה לצ'אט הכללי">
+
+      <!-- כפתור התנתקות קטן כשמחובר -->
+      <div class="header-left-actions">
+        <button id="btn-logout" class="subtle-logout-btn" title="התנתק">התנתק</button>
+      </div>
     </header>
 
-    <!-- ═══ מסך 1: צ'אט והודעות (נפתח מיד) ═══ -->
-    <main id="chat-screen">
-      <!-- רשימת ההודעות (החדשות למעלה) -->
-      <div id="messages-feed">
+    <!-- ═══ מסך 1: צ'אט כללי (נפתח מיד) ═══ -->
+    <main id="chat-screen" class="screen-view">
+      <div id="messages-feed" class="messages-scroll-area">
         <div class="empty-state" id="feed-loading">טוען הודעות...</div>
       </div>
 
-      <!-- בוקס תחתון (Sendbox) עם מזרק -->
       <footer class="bottom-input-container">
         <div class="bottom-input-box" id="bottom-box-wrapper">
           <input type="text" id="chat-input"
@@ -480,20 +737,95 @@
       </footer>
     </main>
 
-    <!-- ═══ מסך 2: חיבור לסטיפס (ברור, מהיר ופשוט) ═══ -->
-    <section id="login-screen">
+    <!-- ═══ מסך 2: צ'אט פרטי (Direct Messages) ═══ -->
+    <section id="dm-screen" class="screen-view" style="display: none;">
+      <div class="chat-sub-header">
+        <div class="chat-sub-title">
+          <span class="sub-name" id="dm-partner-name">צ'אט פרטי</span>
+          <span class="sub-badge" id="dm-partner-status"></span>
+        </div>
+        <button type="button" class="btn-chat-back" id="btn-close-dm">← חזרה</button>
+      </div>
+
+      <div id="dm-messages-feed" class="messages-scroll-area">
+        <div class="empty-state">אין עדיין הודעות בשיחה זו. כתוב משהו!</div>
+      </div>
+
+      <footer class="bottom-input-container">
+        <div class="bottom-input-box">
+          <input type="text" id="dm-input" placeholder="כתוב הודעה פרטית..." autocomplete="off" maxlength="500">
+          <button type="button" id="btn-send-dm" class="btn-syringe-send" title="שלח">
+            <img src="syringe.png" alt="שלח">
+          </button>
+        </div>
+      </footer>
+    </section>
+
+    <!-- ═══ מסך 3: צ'אט קבוצתי (Group Chat) ═══ -->
+    <section id="group-screen" class="screen-view" style="display: none;">
+      <div class="chat-sub-header">
+        <div class="chat-sub-title">
+          <span class="sub-name" id="group-header-name">קבוצה</span>
+          <button type="button" class="btn-copy-group-link" id="btn-share-group-link">📋 העתק קישור</button>
+        </div>
+        <button type="button" class="btn-chat-back" id="btn-close-group">← חזרה</button>
+      </div>
+
+      <div id="group-messages-feed" class="messages-scroll-area">
+        <div class="empty-state">אין עדיין הודעות בקבוצה.</div>
+      </div>
+
+      <footer class="bottom-input-container">
+        <div class="bottom-input-box" id="group-input-box">
+          <input type="text" id="group-input" placeholder="כתוב הודעה לקבוצה..." autocomplete="off" maxlength="500">
+          <button type="button" id="btn-send-group" class="btn-syringe-send" title="שלח">
+            <img src="syringe.png" alt="שלח">
+          </button>
+        </div>
+      </footer>
+    </section>
+
+    <!-- ═══ מסך 4: אנשי קשר וקבוצות (Contacts View) ═══ -->
+    <section id="contacts-screen" class="screen-view" style="display: none;">
+      <div class="chat-sub-header">
+        <span class="sub-name">אנשי קשר וקבוצות</span>
+        <button type="button" class="btn-chat-back" id="btn-close-contacts">← חזרה לצ'אט</button>
+      </div>
+
+      <div class="contacts-container">
+        <!-- קבוצות -->
+        <div class="section-title-row">
+          <span class="section-title">קבוצות</span>
+          <button type="button" class="btn-create-group" id="btn-open-create-group">+ קבוצה חדשה</button>
+        </div>
+        <div id="groups-list-area">
+          <div class="empty-state" style="padding: 14px 0;">אין עדיין קבוצות</div>
+        </div>
+
+        <!-- אנשי קשר שדיברתי איתם -->
+        <div class="section-title-row">
+          <span class="section-title">אנשים ששוחחת איתם</span>
+        </div>
+        <div id="contacts-list-area">
+          <div class="empty-state" style="padding: 20px 0;">לחץ על משתמש בצ'אט כדי לפתוח איתו שיחה פרטית</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ מסך 5: חיבור לסטיפס ═══ -->
+    <section id="login-screen" class="screen-view">
       <div class="login-clean-card">
         <h2>חיבור לסטיפס</h2>
 
-        <!-- שלב 1: הזנת מזהה -->
-        <form id="login-form">
-          <label for="stips-id-input" class="simple-label">מספר הפרופיל שלך בסטיפס (ID):</label>
-          <input type="text" id="stips-id-input" class="clean-input"
-                 placeholder="לדוגמה: 123456" required autocomplete="off">
-          <button type="submit" id="btn-submit-id" class="btn-action-red">קבל קוד</button>
-        </form>
+        <!-- שלב 1: קבל קוד -->
+        <div id="step-get-code">
+          <p class="step-instruction" style="margin-bottom: 16px;">
+            לחץ כדי לקבל קוד חד פעמי, שלח אותו בקיר של נאצ ב-סטיפס, ואמת!
+          </p>
+          <button type="button" id="btn-submit-id" class="btn-action-red">קבל קוד</button>
+        </div>
 
-        <!-- שלב 2: קוד והוראה פשוטה -->
+        <!-- שלב 2: הצגת הקוד ואימות -->
         <div id="code-step-box" style="display: none;">
           <div class="big-code-box" id="code-copy-box" title="לחץ כדי להעתיק">
             <span class="code-val" id="display-verification-code"></span>
@@ -501,20 +833,39 @@
           </div>
 
           <div class="step-instruction">
-            שלח את הקוד בקיר התודות של נאצ בסטיפס:
+            שלח את הקוד הזה בקיר של נאצ בסטיפס:
           </div>
 
           <a id="profile-direct-link" class="btn-open-stips" href="https://stips.co.il/profile/428498" target="_blank" rel="noopener">
-            🔗 לחץ לפתיחת הקיר בסטיפס
+            🔗 פתח את הקיר של נאצ
           </a>
 
-          <button type="button" id="btn-verify-stips" class="btn-action-red">שלחתי, אמת אותי!</button>
+          <button type="button" id="btn-verify-stips" class="btn-action-red">שלחתי — אמת אותי!</button>
+          <button type="button" id="btn-get-new-code" class="btn-back-chat" style="margin-top: 6px;">← קבל קוד חדש</button>
         </div>
 
-        <button type="button" id="btn-back-to-chat" class="btn-back-chat">← חזרה להודעות</button>
+        <button type="button" id="btn-back-to-chat" class="btn-back-chat">← חזרה לצ'אט</button>
         <div id="login-status" class="login-status-msg"></div>
       </div>
     </section>
+
+    <!-- ═══ מודאל יצירת קבוצה ═══ -->
+    <div id="create-group-modal" class="modal-overlay">
+      <div class="modal-box">
+        <h3>יצירת קבוצה חדשה</h3>
+        <input type="text" id="new-group-name" class="modal-input" placeholder="שם הקבוצה..." autocomplete="off">
+
+        <label class="simple-label">הוסף אנשים מהשיחות שלך:</label>
+        <div class="members-select-list" id="modal-members-selection">
+          <div style="color: #64748b; font-size: 0.8rem; padding: 6px;">אין אנשי קשר לבחירה עדיין</div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-modal-cancel" id="btn-cancel-modal">ביטול</button>
+          <button type="button" class="btn-modal-confirm" id="btn-confirm-create-group">צור קבוצה</button>
+        </div>
+      </div>
+    </div>
 
   </div>
 

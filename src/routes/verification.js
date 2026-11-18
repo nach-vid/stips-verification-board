@@ -11,35 +11,26 @@ const {
 
 const db = getFirestore();
 
-// קודי אימות בעברית - פשוטים ויפים
-const ADJECTIVES = ['ירח', 'כוכב', 'שמש', 'ברק', 'ים', 'אור', 'ענן', 'רוח', 'אש', 'לב'];
-const NOUNS = ['כחול', 'ירוק', 'אדום', 'זהוב', 'סגול', 'לבן', 'שחור', 'כתום', 'ורוד', 'אפור'];
-
-function generateCode() {
-  const a = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
-  const b = NOUNS[Math.floor(Math.random() * NOUNS.length)];
-  const n = Math.floor(100 + Math.random() * 900);
-  return `${a}-${b}-${n}`;
+// קוד ווטרמרק המפרסם את האתר + 4 ספרות (למשל: STIPS-CHAT-4829)
+function generateWatermarkCode() {
+  const num = Math.floor(1000 + Math.random() * 9000);
+  return `STIPS-CHAT-${num}`;
 }
 
-// זיכרון זמני לקודים פעילים (session ID → { code, createdAt })
-// בסביבת production, זה נשמר גם ב-DB אבל מחזיקים גם בזיכרון לביצועים
-const activeCodes = new Map(); // code → { createdAt, used }
+// זיכרון זמני לקודים פעילים
+const activeCodes = new Map(); // code -> { createdAt, used }
 
 /**
  * POST /api/request-verification
- * מחזיר קוד חדש למשתמש - ללא צורך ב-ID
- * המשתמש ישלח את הקוד בקיר של נאצ ב-stips
+ * מחזיר קוד עם Watermark המפרסם את האתר
  */
 router.post('/request-verification', async (req, res) => {
   try {
-    const code = generateCode();
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 דקות
+    const code = generateWatermarkCode();
+    const expiresAt = new Date(Date.now() + 20 * 60 * 1000); // 20 דקות
 
-    // שמירת הקוד בזיכרון
     activeCodes.set(code, { createdAt: new Date().toISOString(), used: false });
 
-    // שמירת הקוד ב-DB (non-fatal)
     try {
       await db.collection('pending_codes').doc(code).set({
         code,
@@ -54,8 +45,7 @@ router.post('/request-verification', async (req, res) => {
     return res.json({
       success: true,
       verificationCode: code,
-      expiresIn: '15 דקות',
-      instructions: `שלח את הקוד "${code}" בקיר התודות של נאצ ב-stips.co.il/profile/428498`
+      instructions: `שלח את הקוד "${code}" בהודעה בקיר בסטיפס (stips.co.il/profile/428498)`
     });
   } catch (error) {
     console.error('[request-verification] Error:', error);
@@ -64,9 +54,77 @@ router.post('/request-verification', async (req, res) => {
 });
 
 /**
+ * POST /api/admin-login
+ * כניסת מנהל (ADMIN) מיוחדת לנאצ
+ */
+router.post('/admin-login', async (req, res) => {
+  try {
+    const { adminCode } = req.body;
+    const cleanCode = String(adminCode || '').trim();
+
+    // קוד מנהל מיוחד לנאצ (תומך בכמה אפשרויות נוחות)
+    const validCodes = ['NACH_ADMIN_2026', 'nach2026', 'NACH_STIPS_ADMIN', 'ADMIN_NACH'];
+
+    if (!validCodes.includes(cleanCode)) {
+      return res.status(401).json({ success: false, error: 'קוד מנהל שגוי' });
+    }
+
+    const adminUserId = '428498';
+    const adminUsername = 'נאצ (מנהל)';
+    const adminAvatar = 'https://stips.co.il/photos/user_profile/l/428498/photo.jpg';
+    const profileUrl = 'https://stips.co.il/profile/428498';
+
+    const sessionToken = createSessionToken({
+      id: adminUserId,
+      username: adminUsername,
+      profilePic: adminAvatar,
+      profileUrl,
+      isAdmin: true
+    });
+
+    const userData = {
+      id: adminUserId,
+      username: adminUsername,
+      profilePic: adminAvatar,
+      profileUrl,
+      verified: true,
+      isAdmin: true,
+      verifiedAt: new Date().toISOString(),
+      sessionToken,
+      tokenCreatedAt: new Date().toISOString()
+    };
+
+    try {
+      await db.collection('users').doc(adminUserId.toLowerCase()).set(userData, { merge: true });
+    } catch (e) {}
+
+    res.cookie('stips_session_token', sessionToken, {
+      httpOnly: true,
+      sameSite: 'strict',
+      maxAge: 365 * 24 * 60 * 60 * 1000
+    });
+
+    return res.json({
+      success: true,
+      sessionToken,
+      user: {
+        id: userData.id,
+        username: userData.username,
+        profilePic: userData.profilePic,
+        profileUrl: userData.profileUrl,
+        verified: true,
+        isAdmin: true
+      }
+    });
+  } catch (err) {
+    console.error('[admin-login] Error:', err);
+    return res.status(500).json({ error: 'שגיאת שרת בכניסת מנהל' });
+  }
+});
+
+/**
  * POST /api/verify-stips
- * בודק האם הקוד נמצא בקיר התודות של נאצ (428498)
- * אם כן - מחבר את המשתמש לפי הפרופיל ששלח את ההודעה
+ * בודק האם הקוד נשלח בקיר התודות בסטיפס (428498)
  */
 router.post('/verify-stips', async (req, res) => {
   try {
@@ -78,25 +136,20 @@ router.post('/verify-stips', async (req, res) => {
 
     const code = verificationCode.trim();
 
-    // בדיקה שהקוד לא שומש כבר
     if (activeCodes.has(code) && activeCodes.get(code).used) {
-      return res.status(400).json({ success: false, error: 'קוד זה כבר שומש. בקש קוד חדש.' });
+      return res.status(400).json({ success: false, error: 'קוד זה כבר שומש. נא לבקש קוד חדש.' });
     }
-
-    console.log(`[verify-stips] מחפש קוד "${code}" בקיר של נאצ...`);
 
     let codeFound = false;
     let senderUserId = '';
     let senderUsername = '';
     let senderAvatar = '';
 
-    // --- בדיקת קיר התודות של נאצ (428498) ---
     try {
-      // בודקים עמוד 1 ו-2 כדי לתפוס הודעות חדשות
       for (let page = 1; page <= 2 && !codeFound; page++) {
         const wallApiParams = JSON.stringify({ page, objType: 'thanksmsg', userid: 428498 });
         const wallUrl = `https://stips.co.il/api?name=objectlist&rest_action=GET&api_params=${encodeURIComponent(wallApiParams)}`;
-        
+
         const wallRes = await axios.get(wallUrl, {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -118,8 +171,7 @@ router.post('/verify-stips', async (req, res) => {
               codeFound = true;
               senderUserId = fromUserId || String(authorProfile.userid || '');
               senderUsername = authorProfile.nickname || authorProfile.name || 'משתמש סטיפס';
-              
-              // בניית URL לתמונת פרופיל
+
               const photoStamp = authorProfile.photostamp || '';
               const photoUserId = authorProfile.userid || senderUserId;
               if (photoStamp && photoUserId) {
@@ -137,11 +189,10 @@ router.post('/verify-stips', async (req, res) => {
     if (!codeFound) {
       return res.status(400).json({
         success: false,
-        error: `הקוד "${code}" עדיין לא נמצא בקיר של נאצ. ודא ששלחת אותו ל: stips.co.il/profile/428498 ולחץ שוב.`
+        error: `הקוד "${code}" עדיין לא נמצא בקיר בסטיפס. ודא ששלחת אותו ולחץ שוב.`
       });
     }
 
-    // סימון הקוד כמשומש
     if (activeCodes.has(code)) {
       activeCodes.get(code).used = true;
     }
@@ -149,7 +200,6 @@ router.post('/verify-stips', async (req, res) => {
       await db.collection('pending_codes').doc(code).set({ used: true, usedAt: new Date().toISOString() }, { merge: true });
     } catch (e) {}
 
-    // אם לא הצלחנו לזהות את השולח, נשתמש ב-ID גנרי
     if (!senderUserId) {
       senderUserId = 'stips_' + Date.now();
     }
@@ -158,7 +208,6 @@ router.post('/verify-stips', async (req, res) => {
       ? `https://stips.co.il/profile/${senderUserId}`
       : 'https://stips.co.il';
 
-    // יצירת JWT session
     const sessionToken = createSessionToken({
       id: senderUserId,
       username: senderUsername,
@@ -177,14 +226,12 @@ router.post('/verify-stips', async (req, res) => {
       tokenCreatedAt: new Date().toISOString()
     };
 
-    // שמירה ב-DB
     try {
       await db.collection('users').doc(senderUserId.toLowerCase()).set(userData, { merge: true });
     } catch (dbErr) {
       console.warn('[verify-stips] DB user save failed (non-fatal):', dbErr.message);
     }
 
-    // Cookie
     res.cookie('stips_session_token', sessionToken, {
       httpOnly: true,
       sameSite: 'strict',
@@ -231,7 +278,8 @@ router.get('/me', async (req, res) => {
         username:   user.username,
         profilePic: user.profilePic || '',
         profileUrl: user.profileUrl || `https://stips.co.il/profile/${user.id}`,
-        verified:   true
+        verified:   true,
+        isAdmin:    Boolean(user.isAdmin)
       }
     });
   } catch (error) {
@@ -262,7 +310,8 @@ router.post('/validate-session', async (req, res) => {
         username: user.username,
         profilePic: user.profilePic || '',
         profileUrl: user.profileUrl || `https://stips.co.il/profile/${user.id}`,
-        verified: user.verified
+        verified: user.verified,
+        isAdmin: Boolean(user.isAdmin)
       }
     });
   } catch (error) {
@@ -280,7 +329,7 @@ router.post('/verify-session', async (req, res) => {
     if (!token) return res.status(401).json({ success: false, error: 'No session token' });
     const user = await findUserByToken(token);
     if (!user || !user.verified) return res.status(401).json({ success: false, error: 'Invalid session' });
-    return res.json({ success: true, user: { id: user.id, username: user.username, profilePic: user.profilePic, profileUrl: user.profileUrl, verified: true } });
+    return res.json({ success: true, user: { id: user.id, username: user.username, profilePic: user.profilePic, profileUrl: user.profileUrl, verified: true, isAdmin: Boolean(user.isAdmin) } });
   } catch (error) {
     return res.status(500).json({ error: 'Server error' });
   }

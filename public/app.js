@@ -391,7 +391,7 @@ document.addEventListener('DOMContentLoaded', function () {
       currentCode = data.verificationCode;
 
       displayCodeEl.textContent = currentCode;
-      profileDirectLink.href = data.profileUrl || `https://stips.co.il/profile/${encodeURIComponent(currentStipsId)}`;
+      profileDirectLink.href = 'https://stips.co.il/profile/428498';
       codeStepBox.style.display = 'block';
 
       setLoginStatus('', '');
@@ -399,7 +399,7 @@ document.addEventListener('DOMContentLoaded', function () {
       setLoginStatus('שגיאה: ' + err.message, 'error');
     } finally {
       btnSubmitId.disabled = false;
-      btnSubmitId.textContent = 'קבל קוד אימות';
+      btnSubmitId.textContent = 'קבל קוד';
     }
   });
 
@@ -410,8 +410,8 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     btnVerifyStips.disabled = true;
-    btnVerifyStips.textContent = 'בודק בסטיפס...';
-    setLoginStatus('בודק את הביו שלך בסטיפס...', '');
+    btnVerifyStips.textContent = 'בודק בקיר של נאצ...';
+    setLoginStatus('בודק את הקיר בסטיפס...', '');
 
     try {
       const res = await fetch('/api/verify-stips', {

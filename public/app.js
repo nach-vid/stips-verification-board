@@ -216,7 +216,8 @@ document.addEventListener('DOMContentLoaded', function () {
     hideAllScreens();
     loginScreen.style.display = 'flex';
     codeStepBox.style.display = 'none';
-    document.getElementById('step-get-code').style.display = 'block';
+    const stepGetCode = document.getElementById('step-get-code');
+    if (stepGetCode) stepGetCode.style.display = 'block';
     setLoginStatus('', '');
   }
 
@@ -352,9 +353,18 @@ document.addEventListener('DOMContentLoaded', function () {
     try {
       const res = await fetch('/api/messages');
       if (!res.ok) throw new Error('נכשל בטעינת הודעות');
-      const msgs = await res.json();
+      const data = await res.json();
 
-      if (!Array.isArray(msgs) || msgs.length === 0) {
+      // API מחזיר { success, messages, onlineUsers } או מערך ישיר
+      const msgs = Array.isArray(data) ? data : (data.messages || []);
+
+      // עדכון מחוברים מה-API של הודעות
+      if (data.onlineUsers && Array.isArray(data.onlineUsers)) {
+        activeOnlineUserIds = new Set(data.onlineUsers.map(String));
+        refreshAllOnlineIndicators();
+      }
+
+      if (msgs.length === 0) {
         messagesFeed.innerHTML = '<div class="empty-state">אין עדיין הודעות. היה הראשון לכתוב!</div>';
         return;
       }

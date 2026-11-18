@@ -24,14 +24,12 @@ document.addEventListener('DOMContentLoaded', function () {
     let token = '';
     let user = null;
 
-    // 1. קריאת טוקן
     try { token = localStorage.getItem('stips_session_token') || ''; } catch (e) {}
     if (!token) token = readCookie('stips_session_token');
     if (!token) {
       try { token = sessionStorage.getItem('stips_session_token') || ''; } catch (e) {}
     }
 
-    // 2. קריאת משתמש
     try {
       const uStr = localStorage.getItem('stips_current_user');
       if (uStr) user = JSON.parse(uStr);
@@ -49,7 +47,6 @@ document.addEventListener('DOMContentLoaded', function () {
       } catch (e) {}
     }
 
-    // 3. חילוץ משתמש ישירות מחתימת ה-JWT אם האובייקט נמחק
     if (!user && token && token.includes('.')) {
       try {
         const base64Url = token.split('.')[1];
@@ -90,43 +87,213 @@ document.addEventListener('DOMContentLoaded', function () {
 
   let currentStipsId = '';
   let currentCode = '';
-  let pollInterval = null;
+  let heartbeatInterval = null;
+  let activeOnlineUserIds = new Set();
+
+  // מצבי שיחה נוכחיים
+  let activeDmPartner = null; // { id, username, avatar }
+  let activeGroupId = null;
+  let activeGroupData = null;
+
+  // רשימת אנשי קשר ששוחחנו איתם (לשליפה מהירה ובחירה בקבוצה)
+  let cachedContacts = [];
 
   // אלמנטים - סרגל עליון
   const btnLogout = document.getElementById('btn-logout');
+  const btnToContacts = document.getElementById('btn-to-contacts');
+  const swordLogoBtn = document.getElementById('sword-logo-btn');
 
-  // אלמנטים - מסך צ'אט
-  const chatScreen       = document.getElementById('chat-screen');
-  const messagesFeed     = document.getElementById('messages-feed');
-  const bottomBoxWrapper = document.getElementById('bottom-box-wrapper');
-  const chatInput        = document.getElementById('chat-input');
-  const btnSend          = document.getElementById('btn-send');
+  // מסכים ראשיים
+  const chatScreen = document.getElementById('chat-screen');
+  const dmScreen = document.getElementById('dm-screen');
+  const groupScreen = document.getElementById('group-screen');
+  const contactsScreen = document.getElementById('contacts-screen');
+  const loginScreen = document.getElementById('login-screen');
 
-  // אלמנטים - מסך חיבור
-  const loginScreen         = document.getElementById('login-screen');
-  const loginForm           = document.getElementById('login-form');
-  const stipsIdInput        = document.getElementById('stips-id-input');
-  const btnSubmitId         = document.getElementById('btn-submit-id');
-  const codeStepBox         = document.getElementById('code-step-box');
-  const codeCopyBox         = document.getElementById('code-copy-box');
-  const displayCodeEl       = document.getElementById('display-verification-code');
-  const copyStatusHint      = document.getElementById('copy-status-hint');
-  const profileDirectLink   = document.getElementById('profile-direct-link');
-  const btnVerifyStips      = document.getElementById('btn-verify-stips');
-  const btnBackToChat       = document.getElementById('btn-back-to-chat');
-  const loginStatus         = document.getElementById('login-status');
+  // צ'אט ראשי
+  const messagesFeed = document.getElementById('messages-feed');
+  const chatInput = document.getElementById('chat-input');
+  const btnSend = document.getElementById('btn-send');
 
-  // עזר: אווטאר בטוח
-  function getAvatar(user) {
-    if (user && user.profilePic && user.profilePic.startsWith('http')) {
-      return user.profilePic;
+  // צ'אט פרטי
+  const dmPartnerName = document.getElementById('dm-partner-name');
+  const dmPartnerStatus = document.getElementById('dm-partner-status');
+  const btnCloseDm = document.getElementById('btn-close-dm');
+  const dmMessagesFeed = document.getElementById('dm-messages-feed');
+  const dmInput = document.getElementById('dm-input');
+  const btnSendDm = document.getElementById('btn-send-dm');
+
+  // צ'אט קבוצתי
+  const groupHeaderName = document.getElementById('group-header-name');
+  const btnShareGroupLink = document.getElementById('btn-share-group-link');
+  const btnCloseGroup = document.getElementById('btn-close-group');
+  const groupMessagesFeed = document.getElementById('group-messages-feed');
+  const groupInput = document.getElementById('group-input');
+  const btnSendGroup = document.getElementById('btn-send-group');
+
+  // אנשי קשר
+  const btnCloseContacts = document.getElementById('btn-close-contacts');
+  const btnOpenCreateGroup = document.getElementById('btn-open-create-group');
+  const groupsListArea = document.getElementById('groups-list-area');
+  const contactsListArea = document.getElementById('contacts-list-area');
+
+  // מודאל יצירת קבוצה
+  const createGroupModal = document.getElementById('create-group-modal');
+  const newGroupNameInput = document.getElementById('new-group-name');
+  const modalMembersSelection = document.getElementById('modal-members-selection');
+  const btnCancelModal = document.getElementById('btn-cancel-modal');
+  const btnConfirmCreateGroup = document.getElementById('btn-confirm-create-group');
+
+  // מסך התחברות
+  const btnSubmitId = document.getElementById('btn-submit-id');
+  const codeStepBox = document.getElementById('code-step-box');
+  const displayCodeEl = document.getElementById('display-verification-code');
+  const codeCopyBox = document.getElementById('code-copy-box');
+  const copyStatusHint = document.getElementById('copy-status-hint');
+  const profileDirectLink = document.getElementById('profile-direct-link');
+  const btnVerifyStips = document.getElementById('btn-verify-stips');
+  const btnGetNewCode = document.getElementById('btn-get-new-code');
+  const btnBackToChat = document.getElementById('btn-back-to-chat');
+  const loginStatus = document.getElementById('login-status');
+
+  // ─── מעבר בין מסכים ───
+  function hideAllScreens() {
+    chatScreen.style.display = 'none';
+    dmScreen.style.display = 'none';
+    groupScreen.style.display = 'none';
+    contactsScreen.style.display = 'none';
+    loginScreen.style.display = 'none';
+  }
+
+  function showChatView() {
+    hideAllScreens();
+    chatScreen.style.display = 'flex';
+    activeDmPartner = null;
+    activeGroupId = null;
+    fetchPublicMessages();
+  }
+
+  function showDmView(partner) {
+    hideAllScreens();
+    dmScreen.style.display = 'flex';
+    activeDmPartner = partner;
+    activeGroupId = null;
+    dmPartnerName.textContent = partner.username || 'משתמש ' + partner.id;
+    updateDmPartnerStatusUI();
+    dmMessagesFeed.innerHTML = '<div class="empty-state">טוען שיחה...</div>';
+    fetchDmMessages(partner.id);
+  }
+
+  function updateDmPartnerStatusUI() {
+    if (!activeDmPartner) return;
+    const isOnline = activeOnlineUserIds.has(String(activeDmPartner.id));
+    if (isOnline) {
+      dmPartnerStatus.textContent = '● מחובר כעת';
+      dmPartnerStatus.className = 'sub-badge online';
+    } else {
+      dmPartnerStatus.textContent = 'מנותק';
+      dmPartnerStatus.className = 'sub-badge';
     }
-    const name = (user && (user.username || user.id)) || 'U';
-    return `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=ffffff&color=111111&size=60`;
+  }
+
+  function showGroupView(groupId, groupName) {
+    hideAllScreens();
+    groupScreen.style.display = 'flex';
+    activeGroupId = groupId;
+    activeDmPartner = null;
+    groupHeaderName.textContent = groupName || 'קבוצה';
+    groupMessagesFeed.innerHTML = '<div class="empty-state">טוען קבוצה...</div>';
+    fetchGroupDetailsAndMessages(groupId);
+  }
+
+  function showContactsView() {
+    hideAllScreens();
+    contactsScreen.style.display = 'flex';
+    loadContactsAndGroups();
+  }
+
+  function showLoginView() {
+    hideAllScreens();
+    loginScreen.style.display = 'flex';
+    codeStepBox.style.display = 'none';
+    document.getElementById('step-get-code').style.display = 'block';
+    setLoginStatus('', '');
+  }
+
+  function updateHeaderUI() {
+    if (currentUser && sessionToken) {
+      btnLogout.style.display = 'inline-block';
+      btnLogout.textContent = 'התנתק (' + (currentUser.username || currentUser.id) + ')';
+    } else {
+      btnLogout.style.display = 'none';
+    }
+  }
+
+  function setLoginStatus(msg, type) {
+    loginStatus.textContent = msg;
+    loginStatus.className = 'login-status-msg' + (type ? ' ' + type : '');
+  }
+
+  // ─── לב פועם (Heartbeat & Online Tracking) ───
+  async function sendHeartbeat() {
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (sessionToken) headers['Authorization'] = 'Bearer ' + sessionToken;
+      const res = await fetch('/api/heartbeat', {
+        method: 'POST',
+        headers: headers
+      });
+      const data = await res.json();
+      if (data && Array.isArray(data.onlineUsers)) {
+        activeOnlineUserIds = new Set(data.onlineUsers.map(String));
+        refreshAllOnlineIndicators();
+        if (activeDmPartner) updateDmPartnerStatusUI();
+      }
+    } catch (e) {
+      // שגיאות רשת שקטות
+    }
+  }
+
+  function refreshAllOnlineIndicators() {
+    // עדכון קווי מתאר סביב אווטארים במסך הצ'אט הראשי
+    const avatarWraps = document.querySelectorAll('.msg-avatar-wrap');
+    avatarWraps.forEach(wrap => {
+      const uid = wrap.getAttribute('data-userid');
+      if (uid && activeOnlineUserIds.has(String(uid))) {
+        wrap.classList.add('online-now');
+      } else {
+        wrap.classList.remove('online-now');
+      }
+    });
+
+    // עדכון קווי מתאר ברשימת אנשי קשר אם פתוחה
+    const contactAvatars = document.querySelectorAll('.contact-item-card .contact-avatar-wrap');
+    contactAvatars.forEach(wrap => {
+      const uid = wrap.getAttribute('data-userid');
+      if (uid && activeOnlineUserIds.has(String(uid))) {
+        wrap.classList.add('online-now');
+      } else {
+        wrap.classList.remove('online-now');
+      }
+    });
+  }
+
+  // ─── פורמט תאריכים ───
+  function formatMsgDate(isoStr) {
+    if (!isoStr) return '';
+    try {
+      const d = new Date(isoStr);
+      const hours = String(d.getHours()).padStart(2, '0');
+      const mins = String(d.getMinutes()).padStart(2, '0');
+      return hours + ':' + mins;
+    } catch (e) {
+      return '';
+    }
   }
 
   function escapeHtml(str) {
-    return String(str || '')
+    if (!str) return '';
+    return String(str)
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
@@ -134,108 +301,92 @@ document.addEventListener('DOMContentLoaded', function () {
       .replace(/'/g, '&#39;');
   }
 
-  function setLoginStatus(msg, type) {
-    loginStatus.textContent = msg;
-    loginStatus.className = 'login-status-msg ' + (type || '');
-  }
+  // ─── רינדור הודעה בצ'אט הכללי ───
+  function renderPublicMessageCard(msg) {
+    const card = document.createElement('div');
+    card.className = 'stips-msg-card';
+    card.setAttribute('data-id', msg.id);
 
-  // ─── 2. ניווט בין מסכים ───
-  function showChatView() {
-    loginScreen.style.display = 'none';
-    chatScreen.style.display = 'flex';
+    const isOnline = activeOnlineUserIds.has(String(msg.userId));
 
-    updateHeaderUI();
-    loadMessages();
+    const avatarHtml = msg.avatar
+      ? `<img src="${escapeHtml(msg.avatar)}" alt="${escapeHtml(msg.username)}" class="msg-avatar-img">`
+      : `<div class="msg-avatar-placeholder">${escapeHtml((msg.username || '?')[0].toUpperCase())}</div>`;
 
-    clearInterval(pollInterval);
-    pollInterval = setInterval(loadMessages, 6000);
-  }
+    card.innerHTML = `
+      <div class="msg-author-side" data-userid="${escapeHtml(msg.userId)}" data-username="${escapeHtml(msg.username)}" data-avatar="${escapeHtml(msg.avatar || '')}" title="לחץ לשליחת הודעה פרטית">
+        <div class="msg-avatar-wrap ${isOnline ? 'online-now' : ''}" data-userid="${escapeHtml(msg.userId)}">
+          ${avatarHtml}
+        </div>
+        <div class="msg-author-name">${escapeHtml(msg.username || 'משתמש ' + msg.userId)}</div>
+      </div>
+      <div class="msg-content-side">
+        <div class="msg-bubble-card">
+          <div class="msg-text-body">${escapeHtml(msg.text)}</div>
+          <div class="msg-bottom-meta">
+            <span>${formatMsgDate(msg.createdAt)}</span>
+          </div>
+        </div>
+      </div>
+    `;
 
-  function showLoginView() {
-    clearInterval(pollInterval);
-    chatScreen.style.display = 'none';
-    loginScreen.style.display = 'flex';
-
-    codeStepBox.style.display = 'none';
-    stipsIdInput.value = '';
-    setLoginStatus('', '');
-    stipsIdInput.focus();
-  }
-
-  function updateHeaderUI() {
-    if (currentUser) {
-      btnLogout.style.display = 'block';
-    } else {
-      btnLogout.style.display = 'none';
-    }
-  }
-
-  btnLogout.addEventListener('click', function () {
-    logout();
-  });
-
-  btnBackToChat.addEventListener('click', function () {
-    showChatView();
-  });
-
-  async function logout() {
-    try {
-      await fetch('/api/logout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + sessionToken
-        },
-        body: JSON.stringify({ sessionToken })
+    // לחיצה על האוואטר / מחבר לפתיחת צ'אט פרטי
+    const authorSide = card.querySelector('.msg-author-side');
+    authorSide.addEventListener('click', function () {
+      const targetUserId = this.getAttribute('data-userid');
+      const targetUsername = this.getAttribute('data-username');
+      const targetAvatar = this.getAttribute('data-avatar');
+      
+      showDmView({
+        id: targetUserId,
+        username: targetUsername,
+        avatar: targetAvatar
       });
-    } catch (e) {}
+    });
 
-    sessionToken = '';
-    currentUser = null;
-    clearAllSession();
-    updateHeaderUI();
-    loadMessages(); // ריענון להסרת האאוטליין המהבהב
+    return card;
   }
 
-  // ─── 3. שליחת הודעות / כניסה למשתמש ───
-  bottomBoxWrapper.addEventListener('click', function (e) {
-    if (!currentUser) {
-      e.preventDefault();
-      showLoginView();
+  // ─── טעינת הודעות ציבוריות ───
+  async function fetchPublicMessages() {
+    try {
+      const res = await fetch('/api/messages');
+      if (!res.ok) throw new Error('נכשל בטעינת הודעות');
+      const msgs = await res.json();
+
+      if (!Array.isArray(msgs) || msgs.length === 0) {
+        messagesFeed.innerHTML = '<div class="empty-state">אין עדיין הודעות. היה הראשון לכתוב!</div>';
+        return;
+      }
+
+      const shouldScroll = messagesFeed.scrollTop + messagesFeed.clientHeight >= messagesFeed.scrollHeight - 50;
+
+      messagesFeed.innerHTML = '';
+      msgs.forEach(m => {
+        messagesFeed.appendChild(renderPublicMessageCard(m));
+      });
+
+      if (shouldScroll) {
+        messagesFeed.scrollTop = messagesFeed.scrollHeight;
+      }
+    } catch (e) {
+      if (!messagesFeed.querySelector('.stips-msg-card')) {
+        messagesFeed.innerHTML = '<div class="empty-state">שגיאה בטעינת ההודעות. מרענן...</div>';
+      }
     }
-  });
+  }
 
-  chatInput.addEventListener('focus', function (e) {
-    if (!currentUser) {
-      e.preventDefault();
-      chatInput.blur();
-      showLoginView();
-    }
-  });
+  // ─── שליחת הודעה ציבורית ───
+  async function sendPublicMessage() {
+    const text = (chatInput.value || '').trim();
+    if (!text) return;
 
-  chatInput.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      sendMessage();
-    }
-  });
-
-  btnSend.addEventListener('click', function (e) {
-    e.preventDefault();
-    sendMessage();
-  });
-
-  async function sendMessage() {
-    if (!currentUser) {
+    if (!sessionToken || !currentUser) {
       showLoginView();
       return;
     }
 
-    const text = chatInput.value.trim();
-    if (!text) return;
-
     btnSend.disabled = true;
-
     try {
       const res = await fetch('/api/messages', {
         method: 'POST',
@@ -243,143 +394,430 @@ document.addEventListener('DOMContentLoaded', function () {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ' + sessionToken
         },
-        body: JSON.stringify({
-          text: text,
-          sessionToken: sessionToken,
-          user: currentUser
-        })
+        body: JSON.stringify({ text: text })
       });
-
       const data = await res.json();
-
       if (!res.ok || !data.success) {
-        throw new Error(data.error || 'שגיאה בשליחת המסר');
+        throw new Error(data.error || 'שגיאה בשליחת הודעה');
       }
 
       chatInput.value = '';
-      if (data.messages) {
-        renderMessages(data.messages);
-      } else {
-        loadMessages();
-      }
-
+      await fetchPublicMessages();
+      messagesFeed.scrollTop = messagesFeed.scrollHeight;
     } catch (err) {
       alert('שגיאה: ' + err.message);
     } finally {
       btnSend.disabled = false;
-      chatInput.focus();
     }
   }
 
-  // ─── 4. טעינת והצגת הודעות (החדשות למעלה + אאוטליין אפור מהבהב) ───
-  async function loadMessages() {
-    try {
-      const res = await fetch('/api/messages');
-      const data = await res.json();
-      if (res.ok && data.success && Array.isArray(data.messages)) {
-        if (data.messages.length > 0) {
-          try {
-            localStorage.setItem('stips_cached_messages', JSON.stringify(data.messages));
-          } catch (e) {}
-        }
-        renderMessages(data.messages);
-      }
-    } catch (e) {
-      console.warn('loadMessages error:', e.message);
-    }
-  }
-
-  // שחזור מיידי מהמטמון בדפדפן אם קיים
-  try {
-    const cached = localStorage.getItem('stips_cached_messages');
-    if (cached) {
-      const parsed = JSON.parse(cached);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        renderMessages(parsed);
-      }
-    }
-  } catch (e) {}
-
-  function renderMessages(messages) {
-    if (!messages || messages.length === 0) {
-      messagesFeed.innerHTML = '<div class="empty-state">אין עדיין הודעות בלוח. היה הראשון לפרסם!</div>';
+  // ─── שיחות פרטיות (Direct Messages) ───
+  async function fetchDmMessages(targetUserId) {
+    if (!sessionToken) {
+      dmMessagesFeed.innerHTML = '<div class="empty-state">עליך להתחבר כדי לצפות ולשלוח הודעות פרטיות.<br><br><button type="button" class="btn-create-group" id="btn-login-from-dm">התחבר עכשיו</button></div>';
+      const btn = document.getElementById('btn-login-from-dm');
+      if (btn) btn.onclick = showLoginView;
       return;
     }
 
-    // הבהוב אפור (Fade) מסביב לפרופיל רק במידה והמשתמש מחובר
-    const isUserConnected = !!currentUser;
-    const pulseClass = isUserConnected ? 'avatar-fade-pulse' : '';
+    try {
+      const res = await fetch('/api/dm/' + encodeURIComponent(targetUserId), {
+        headers: { 'Authorization': 'Bearer ' + sessionToken }
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'נכשל בטעינת שיחה פרטית');
+      }
 
-    // הודעות חדשות ביותר למעלה
-    const newestFirst = [...messages].reverse();
+      const msgs = data.messages || [];
+      if (msgs.length === 0) {
+        dmMessagesFeed.innerHTML = '<div class="empty-state">אין עדיין הודעות בשיחה זו. כתוב משהו ראשון!</div>';
+        return;
+      }
 
-    messagesFeed.innerHTML = newestFirst.map(msg => {
-      const avatarSrc = msg.profilePic || getAvatar({ username: msg.username, id: msg.userId });
-      const name = msg.username || 'משתמש';
-      const text = msg.text || '';
+      dmMessagesFeed.innerHTML = '';
+      msgs.forEach(m => {
+        const isMe = currentUser && (String(currentUser.id) === String(m.senderId));
+        const row = document.createElement('div');
+        row.className = 'dm-bubble-row ' + (isMe ? 'me' : 'other');
 
-      return `
-        <div class="msg-card">
-          <div class="msg-author-side">
-            <img class="msg-avatar ${pulseClass}" src="${escapeHtml(avatarSrc)}" alt=""
-                 onerror="this.src='https://ui-avatars.com/api/?name=U&background=ffffff&color=111111&size=60'">
-            <span class="msg-author">${escapeHtml(name)}</span>
-          </div>
-          <div class="msg-content">${escapeHtml(text)}</div>
-        </div>
-      `;
-    }).join('');
+        const bubble = document.createElement('div');
+        bubble.className = 'dm-bubble';
+        bubble.innerHTML = `
+          <div>${escapeHtml(m.text)}</div>
+          <div class="msg-bottom-meta" style="color: ${isMe ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.5)'}; font-size: 0.7rem; margin-top: 3px;">${formatMsgDate(m.createdAt)}</div>
+        `;
+        row.appendChild(bubble);
+        dmMessagesFeed.appendChild(row);
+      });
+
+      dmMessagesFeed.scrollTop = dmMessagesFeed.scrollHeight;
+    } catch (err) {
+      dmMessagesFeed.innerHTML = '<div class="empty-state">שגיאה: ' + escapeHtml(err.message) + '</div>';
+    }
   }
 
-  // ─── 5. העתקת קוד קלה בלחיצה אחת ───
-  function copyCodeToClipboard() {
-    if (!currentCode) return;
+  async function sendDmMessage() {
+    if (!activeDmPartner) return;
+    const text = (dmInput.value || '').trim();
+    if (!text) return;
 
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(currentCode).then(onCopied).catch(fallbackCopy);
+    if (!sessionToken || !currentUser) {
+      showLoginView();
+      return;
+    }
+
+    btnSendDm.disabled = true;
+    try {
+      const res = await fetch('/api/dm/' + encodeURIComponent(activeDmPartner.id), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + sessionToken
+        },
+        body: JSON.stringify({ text: text })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'שגיאה בשליחת הודעה פרטית');
+      }
+
+      dmInput.value = '';
+      await fetchDmMessages(activeDmPartner.id);
+    } catch (err) {
+      alert('שגיאה: ' + err.message);
+    } finally {
+      btnSendDm.disabled = false;
+    }
+  }
+
+  // ─── קבוצות (Groups) ───
+  async function fetchGroupDetailsAndMessages(groupId) {
+    try {
+      const headers = {};
+      if (sessionToken) headers['Authorization'] = 'Bearer ' + sessionToken;
+
+      const res = await fetch('/api/groups/' + encodeURIComponent(groupId), { headers });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'קבוצה לא נמצאה');
+      }
+
+      activeGroupData = data.group;
+      groupHeaderName.textContent = activeGroupData.name || 'קבוצה';
+
+      const msgs = activeGroupData.messages || [];
+      if (msgs.length === 0) {
+        groupMessagesFeed.innerHTML = '<div class="empty-state">אין עדיין הודעות בקבוצה זו. כתוב משהו ראשון!</div>';
+        return;
+      }
+
+      groupMessagesFeed.innerHTML = '';
+      msgs.forEach(m => {
+        const isMe = currentUser && (String(currentUser.id) === String(m.senderId));
+        const row = document.createElement('div');
+        row.className = 'dm-bubble-row ' + (isMe ? 'me' : 'other');
+
+        const bubble = document.createElement('div');
+        bubble.className = 'dm-bubble';
+        bubble.innerHTML = `
+          ${!isMe ? `<div class="dm-bubble-sender">${escapeHtml(m.senderUsername || 'חבר קבוצה')}</div>` : ''}
+          <div>${escapeHtml(m.text)}</div>
+          <div class="msg-bottom-meta" style="color: ${isMe ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.5)'}; font-size: 0.7rem; margin-top: 3px;">${formatMsgDate(m.createdAt)}</div>
+        `;
+        row.appendChild(bubble);
+        groupMessagesFeed.appendChild(row);
+      });
+
+      groupMessagesFeed.scrollTop = groupMessagesFeed.scrollHeight;
+    } catch (err) {
+      groupMessagesFeed.innerHTML = '<div class="empty-state">שגיאה: ' + escapeHtml(err.message) + '</div>';
+    }
+  }
+
+  async function sendGroupMessage() {
+    if (!activeGroupId) return;
+    const text = (groupInput.value || '').trim();
+    if (!text) return;
+
+    // אם המשתמש אורח (נכנס דרך לינק) - מבקשים חיבור!
+    if (!sessionToken || !currentUser) {
+      alert('כדי לכתוב בקבוצה, עליך להתחבר תחילה!');
+      showLoginView();
+      return;
+    }
+
+    btnSendGroup.disabled = true;
+    try {
+      const res = await fetch('/api/groups/' + encodeURIComponent(activeGroupId) + '/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + sessionToken
+        },
+        body: JSON.stringify({ text: text })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'שגיאה בשליחת הודעה לקבוצה');
+      }
+
+      groupInput.value = '';
+      await fetchGroupDetailsAndMessages(activeGroupId);
+    } catch (err) {
+      alert('שגיאה: ' + err.message);
+    } finally {
+      btnSendGroup.disabled = false;
+    }
+  }
+
+  // ─── טעינת אנשי קשר וקבוצות (Contacts View) ───
+  async function loadContactsAndGroups() {
+    if (!sessionToken) {
+      contactsListArea.innerHTML = '<div class="empty-state">עליך להתחבר כדי לראות את אנשי הקשר שלך.<br><br><button type="button" class="btn-create-group" id="btn-login-from-contacts">התחבר עכשיו</button></div>';
+      groupsListArea.innerHTML = '<div class="empty-state">התחבר כדי לראות את הקבוצות שלך</div>';
+      const b = document.getElementById('btn-login-from-contacts');
+      if (b) b.onclick = showLoginView;
+      return;
+    }
+
+    contactsListArea.innerHTML = '<div class="empty-state">טוען אנשי קשר...</div>';
+    groupsListArea.innerHTML = '<div class="empty-state">טוען קבוצות...</div>';
+
+    try {
+      const res = await fetch('/api/contacts', {
+        headers: { 'Authorization': 'Bearer ' + sessionToken }
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'נכשל בטעינת אנשי קשר');
+      }
+
+      cachedContacts = data.contacts || [];
+      const groups = data.groups || [];
+
+      // רינדור קבוצות
+      if (groups.length === 0) {
+        groupsListArea.innerHTML = '<div class="empty-state" style="padding: 14px 0;">אין עדיין קבוצות. לחץ על "+ קבוצה חדשה" ליצירה!</div>';
+      } else {
+        groupsListArea.innerHTML = '';
+        groups.forEach(g => {
+          const item = document.createElement('div');
+          item.className = 'contact-item-card';
+          item.innerHTML = `
+            <div class="contact-avatar-wrap" style="background: #374151; font-weight: 700; color: #f3f4f6;">👥</div>
+            <div class="contact-details">
+              <div class="contact-name">${escapeHtml(g.name)}</div>
+              <div class="contact-sub">${g.memberCount || (g.members && g.members.length) || 1} חברים</div>
+            </div>
+          `;
+          item.addEventListener('click', () => {
+            showGroupView(g.id, g.name);
+          });
+          groupsListArea.appendChild(item);
+        });
+      }
+
+      // רינדור אנשי קשר
+      if (cachedContacts.length === 0) {
+        contactsListArea.innerHTML = '<div class="empty-state" style="padding: 20px 0;">עוד לא שוחחת עם אף אחד.<br>לחץ על תמונת משתמש בצ\'אט כדי להתחיל שיחה!</div>';
+      } else {
+        contactsListArea.innerHTML = '';
+        cachedContacts.forEach(c => {
+          const isOnline = activeOnlineUserIds.has(String(c.userId));
+          const avatarInner = c.avatar
+            ? `<img src="${escapeHtml(c.avatar)}" alt="${escapeHtml(c.username)}" class="contact-avatar-img">`
+            : `<div class="contact-avatar-placeholder">${escapeHtml((c.username || '?')[0].toUpperCase())}</div>`;
+
+          const item = document.createElement('div');
+          item.className = 'contact-item-card';
+          item.innerHTML = `
+            <div class="contact-avatar-wrap ${isOnline ? 'online-now' : ''}" data-userid="${escapeHtml(c.userId)}">
+              ${avatarInner}
+            </div>
+            <div class="contact-details">
+              <div class="contact-name">${escapeHtml(c.username || 'משתמש ' + c.userId)}</div>
+              <div class="contact-sub">${isOnline ? '<span style="color:#22c55e;">● מחובר כעת</span>' : 'נראה לאחרונה'}</div>
+            </div>
+          `;
+          item.addEventListener('click', () => {
+            showDmView({
+              id: c.userId,
+              username: c.username,
+              avatar: c.avatar
+            });
+          });
+          contactsListArea.appendChild(item);
+        });
+      }
+
+    } catch (err) {
+      contactsListArea.innerHTML = '<div class="empty-state">שגיאה: ' + escapeHtml(err.message) + '</div>';
+    }
+  }
+
+  // ─── יצירת קבוצה חדשה ───
+  function openCreateGroupModal() {
+    if (!sessionToken || !currentUser) {
+      showLoginView();
+      return;
+    }
+
+    newGroupNameInput.value = '';
+    modalMembersSelection.innerHTML = '';
+
+    if (cachedContacts.length === 0) {
+      modalMembersSelection.innerHTML = '<div style="color: #94a3b8; font-size: 0.8rem; padding: 6px;">אין עדיין אנשי קשר מהשיחות שלך. הקבוצה תיווצר ותוכל לשתף לה קישור!</div>';
     } else {
-      fallbackCopy();
+      cachedContacts.forEach(c => {
+        const row = document.createElement('label');
+        row.className = 'member-check-item';
+        row.innerHTML = `
+          <input type="checkbox" value="${escapeHtml(c.userId)}" class="group-member-checkbox">
+          <span>${escapeHtml(c.username || 'משתמש ' + c.userId)}</span>
+        `;
+        modalMembersSelection.appendChild(row);
+      });
     }
 
-    function fallbackCopy() {
-      const tempInput = document.createElement('input');
-      tempInput.value = currentCode;
-      document.body.appendChild(tempInput);
-      tempInput.select();
-      try {
-        document.execCommand('copy');
-        onCopied();
-      } catch (err) {}
-      document.body.removeChild(tempInput);
-    }
-
-    function onCopied() {
-      copyStatusHint.textContent = "✓ הקוד הועתק בהצלחה!";
-      copyStatusHint.style.color = "#4caf50";
-      setTimeout(() => {
-        copyStatusHint.textContent = "לחץ להעתקה";
-        copyStatusHint.style.color = "#ff5252";
-      }, 2500);
-    }
+    createGroupModal.style.display = 'flex';
+    newGroupNameInput.focus();
   }
 
-  codeCopyBox.addEventListener('click', copyCodeToClipboard);
+  btnConfirmCreateGroup.addEventListener('click', async function () {
+    const name = (newGroupNameInput.value || '').trim();
+    if (!name) {
+      alert('נא להזין שם לקבוצה');
+      return;
+    }
 
-  // ─── 6. תהליך חיבור לסטיפס ───
-  loginForm.addEventListener('submit', async function (e) {
-    e.preventDefault();
-    const idVal = stipsIdInput.value.trim();
-    if (!idVal) return;
+    const selectedMembers = [];
+    const checkboxes = modalMembersSelection.querySelectorAll('.group-member-checkbox:checked');
+    checkboxes.forEach(cb => selectedMembers.push(cb.value));
 
+    btnConfirmCreateGroup.disabled = true;
+    try {
+      const res = await fetch('/api/groups', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + sessionToken
+        },
+        body: JSON.stringify({
+          name: name,
+          initialMembers: selectedMembers
+        })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'נכשל ביצירת קבוצה');
+      }
+
+      createGroupModal.style.display = 'none';
+      showGroupView(data.group.id, data.group.name);
+    } catch (err) {
+      alert('שגיאה: ' + err.message);
+    } finally {
+      btnConfirmCreateGroup.disabled = false;
+    }
+  });
+
+  btnCancelModal.addEventListener('click', function () {
+    createGroupModal.style.display = 'none';
+  });
+
+  // שיתוף קישור לקבוצה
+  btnShareGroupLink.addEventListener('click', function () {
+    if (!activeGroupId) return;
+    const groupUrl = window.location.origin + window.location.pathname + '?group=' + encodeURIComponent(activeGroupId);
+    
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(groupUrl).then(() => {
+        const orig = btnShareGroupLink.textContent;
+        btnShareGroupLink.textContent = '✓ הועתק!';
+        setTimeout(() => { btnShareGroupLink.textContent = orig; }, 2000);
+      }).catch(() => {
+        prompt('העתק את הקישור לקבוצה:', groupUrl);
+      });
+    } else {
+      prompt('העתק את הקישור לקבוצה:', groupUrl);
+    }
+  });
+
+  // ─── מאזיני כפתורי ניווט ואירועים ───
+  btnToContacts.addEventListener('click', showContactsView);
+  swordLogoBtn.addEventListener('click', showChatView);
+  btnCloseDm.addEventListener('click', showChatView);
+  btnCloseGroup.addEventListener('click', showChatView);
+  btnCloseContacts.addEventListener('click', showChatView);
+  btnBackToChat.addEventListener('click', showChatView);
+  btnOpenCreateGroup.addEventListener('click', openCreateGroupModal);
+
+  // שליחת הודעות
+  btnSend.addEventListener('click', sendPublicMessage);
+  chatInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      sendPublicMessage();
+    }
+  });
+
+  btnSendDm.addEventListener('click', sendDmMessage);
+  dmInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      sendDmMessage();
+    }
+  });
+
+  btnSendGroup.addEventListener('click', sendGroupMessage);
+  groupInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      sendGroupMessage();
+    }
+  });
+
+  // העתקת קוד אימות בלחיצה
+  codeCopyBox.addEventListener('click', function () {
+    const code = displayCodeEl.textContent;
+    if (!code) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(code).then(() => {
+        copyStatusHint.textContent = 'הועתק בהצלחה!';
+        copyStatusHint.style.color = '#4caf50';
+        setTimeout(() => {
+          copyStatusHint.textContent = 'לחץ להעתקה';
+          copyStatusHint.style.color = '#ff5252';
+        }, 2000);
+      });
+    }
+  });
+
+  // התנתקות (רק לפי בקשת המשתמש המפורשת)
+  btnLogout.addEventListener('click', function () {
+    if (confirm('האם אתה בטוח שברצונך להתנתק?')) {
+      clearAllSession();
+      currentUser = null;
+      sessionToken = '';
+      updateHeaderUI();
+      showChatView();
+    }
+  });
+
+  // ─── כפתור "קבל קוד" (ללא צורך ב-ID) ───
+  async function requestNewCode() {
+    const stepGetCode = document.getElementById('step-get-code');
     btnSubmitId.disabled = true;
     btnSubmitId.textContent = 'מייצר קוד...';
     setLoginStatus('', '');
 
     try {
-      const res = await fetch('/api/generate-code', {
+      const res = await fetch('/api/request-verification', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stipsUsername: idVal })
+        body: JSON.stringify({})
       });
       const data = await res.json();
 
@@ -387,11 +825,11 @@ document.addEventListener('DOMContentLoaded', function () {
         throw new Error(data.error || 'נכשל ביצירת קוד אימות');
       }
 
-      currentStipsId = data.identifier || idVal;
       currentCode = data.verificationCode;
 
       displayCodeEl.textContent = currentCode;
       profileDirectLink.href = 'https://stips.co.il/profile/428498';
+      if (stepGetCode) stepGetCode.style.display = 'none';
       codeStepBox.style.display = 'block';
 
       setLoginStatus('', '');
@@ -401,11 +839,24 @@ document.addEventListener('DOMContentLoaded', function () {
       btnSubmitId.disabled = false;
       btnSubmitId.textContent = 'קבל קוד';
     }
-  });
+  }
+
+  btnSubmitId.addEventListener('click', requestNewCode);
+
+  // כפתור "קבל קוד חדש"
+  const btnGetNewCode = document.getElementById('btn-get-new-code');
+  if (btnGetNewCode) {
+    btnGetNewCode.addEventListener('click', function () {
+      codeStepBox.style.display = 'none';
+      const stepGetCode = document.getElementById('step-get-code');
+      if (stepGetCode) stepGetCode.style.display = 'block';
+      setLoginStatus('', '');
+    });
+  }
 
   btnVerifyStips.addEventListener('click', async function () {
-    if (!currentStipsId || !currentCode) {
-      setLoginStatus('נא לייצר קוד תחילה.', 'error');
+    if (!currentCode) {
+      setLoginStatus('נא לקבל קוד תחילה.', 'error');
       return;
     }
 
@@ -417,10 +868,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const res = await fetch('/api/verify-stips', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          stipsUsername: currentStipsId,
-          verificationCode: currentCode
-        })
+        body: JSON.stringify({ verificationCode: currentCode })
       });
       const data = await res.json();
 
@@ -431,46 +879,77 @@ document.addEventListener('DOMContentLoaded', function () {
       sessionToken = data.sessionToken;
       currentUser = data.user;
 
-      // שמירה רב-שכבתית (Local, Cookie, Session) – לא מתנתק לעולם
       saveSession(sessionToken, currentUser);
+      updateHeaderUI();
 
       setLoginStatus('אימות הצליח! מעביר לצ\'אט...', 'success');
 
       setTimeout(() => {
         showChatView();
         chatInput.focus();
-      }, 300);
+      }, 400);
 
     } catch (err) {
       setLoginStatus('האימות נכשל: ' + err.message, 'error');
     } finally {
       btnVerifyStips.disabled = false;
-      btnVerifyStips.textContent = 'אמת והתחבר';
+      btnVerifyStips.textContent = 'שלחתי — אמת אותי!';
     }
   });
 
-  // ─── 7. בדיקת סשן שקטה ברקע (אינה מנתקת לעולם) ───
+  // ─── בדיקת סשן שקטה ברקע ───
   async function verifySessionQuietly() {
     if (!sessionToken) return;
-
     try {
       const res = await fetch('/api/me', {
         headers: { 'Authorization': 'Bearer ' + sessionToken }
       });
       const data = await res.json();
-
       if (res.ok && data.success && data.user) {
         currentUser = data.user;
         saveSession(sessionToken, currentUser);
         updateHeaderUI();
       }
     } catch (e) {
-      // לא מנתקים לעולם בשגיאות רשת או בהתעוררות שרת
+      // לא מנתק לעולם
     }
   }
 
-  // הפעלה ראשונית
+  // ─── בדיקת כניסה דרך קישור קבוצה (?group=...) ───
+  function checkUrlParams() {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const groupId = params.get('group');
+      if (groupId) {
+        // גם אורח יכול לצפות!
+        showGroupView(groupId, 'קבוצה');
+        return true;
+      }
+    } catch (e) {}
+    return false;
+  }
+
+  // ─── אתחול ראשי ───
   updateHeaderUI();
-  showChatView();
+  const openedFromGroup = checkUrlParams();
+  if (!openedFromGroup) {
+    showChatView();
+  }
   verifySessionQuietly();
+
+  // התחלת לב פועם לבדיקת חיבור ונוכחות
+  sendHeartbeat();
+  heartbeatInterval = setInterval(sendHeartbeat, 8000);
+
+  // פולינג הודעות תקופתי בהתאם למסך הפעיל
+  setInterval(() => {
+    if (chatScreen.style.display !== 'none') {
+      fetchPublicMessages();
+    } else if (dmScreen.style.display !== 'none' && activeDmPartner) {
+      fetchDmMessages(activeDmPartner.id);
+    } else if (groupScreen.style.display !== 'none' && activeGroupId) {
+      fetchGroupDetailsAndMessages(activeGroupId);
+    }
+  }, 3500);
+
 });

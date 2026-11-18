@@ -302,33 +302,24 @@ document.addEventListener('DOMContentLoaded', function () {
       .replace(/'/g, '&#39;');
   }
 
-  // ─── רינדור הודעה בצ'אט הכללי ───
+  // ─── רינדור הודעה בצ'אט הכללי (העיצוב המקורי של פעם) ───
   function renderPublicMessageCard(msg) {
     const card = document.createElement('div');
-    card.className = 'stips-msg-card';
+    card.className = 'msg-card';
     card.setAttribute('data-id', msg.id);
 
     const isOnline = activeOnlineUserIds.has(String(msg.userId));
 
     const avatarHtml = msg.avatar
-      ? `<img src="${escapeHtml(msg.avatar)}" alt="${escapeHtml(msg.username)}" class="msg-avatar-img">`
-      : `<div class="msg-avatar-placeholder">${escapeHtml((msg.username || '?')[0].toUpperCase())}</div>`;
+      ? `<img src="${escapeHtml(msg.avatar)}" alt="${escapeHtml(msg.username)}" class="msg-avatar ${isOnline ? 'online-now' : ''}" data-userid="${escapeHtml(msg.userId)}">`
+      : `<div class="msg-avatar-placeholder ${isOnline ? 'online-now' : ''}" data-userid="${escapeHtml(msg.userId)}">${escapeHtml((msg.username || '?')[0].toUpperCase())}</div>`;
 
     card.innerHTML = `
-      <div class="msg-author-side" data-userid="${escapeHtml(msg.userId)}" data-username="${escapeHtml(msg.username)}" data-avatar="${escapeHtml(msg.avatar || '')}" title="לחץ לשליחת הודעה פרטית">
-        <div class="msg-avatar-wrap ${isOnline ? 'online-now' : ''}" data-userid="${escapeHtml(msg.userId)}">
-          ${avatarHtml}
-        </div>
-        <div class="msg-author-name">${escapeHtml(msg.username || 'משתמש ' + msg.userId)}</div>
+      <div class="msg-author-side" data-userid="${escapeHtml(msg.userId)}" data-username="${escapeHtml(msg.username)}" data-avatar="${escapeHtml(msg.avatar || '')}" title="לחץ לשיחה פרטית">
+        ${avatarHtml}
+        <span class="msg-author">${escapeHtml(msg.username || 'משתמש')}</span>
       </div>
-      <div class="msg-content-side">
-        <div class="msg-bubble-card">
-          <div class="msg-text-body">${escapeHtml(msg.text)}</div>
-          <div class="msg-bottom-meta">
-            <span>${formatMsgDate(msg.createdAt)}</span>
-          </div>
-        </div>
-      </div>
+      <div class="msg-content">${escapeHtml(msg.text)}</div>
     `;
 
     // לחיצה על האוואטר / מחבר לפתיחת צ'אט פרטי
@@ -337,7 +328,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const targetUserId = this.getAttribute('data-userid');
       const targetUsername = this.getAttribute('data-username');
       const targetAvatar = this.getAttribute('data-avatar');
-      
+
       showDmView({
         id: targetUserId,
         username: targetUsername,
@@ -525,18 +516,47 @@ document.addEventListener('DOMContentLoaded', function () {
 
       groupMessagesFeed.innerHTML = '';
       msgs.forEach(m => {
-        const isMe = currentUser && (String(currentUser.id) === String(m.senderId));
+        const senderId = m.senderId || m.userId;
+        const senderName = m.senderUsername || m.username || 'חבר קבוצה';
+        const senderPic = m.senderAvatar || m.avatar || m.profilePic || '';
+        const isMe = currentUser && (String(currentUser.id) === String(senderId));
+
         const row = document.createElement('div');
         row.className = 'dm-bubble-row ' + (isMe ? 'me' : 'other');
+
+        // תמונת פרופיל של השולח (אם לא אני)
+        let avatarElHtml = '';
+        if (!isMe) {
+          avatarElHtml = senderPic
+            ? `<img src="${escapeHtml(senderPic)}" alt="${escapeHtml(senderName)}" class="bubble-avatar" title="${escapeHtml(senderName)}">`
+            : `<div class="bubble-avatar-placeholder" title="${escapeHtml(senderName)}">${escapeHtml((senderName || '?')[0].toUpperCase())}</div>`;
+        }
+
+        const bodyWrap = document.createElement('div');
+        bodyWrap.className = 'dm-bubble-body-wrap';
+
+        // הצגת השם של השולח (אם לא אני)
+        if (!isMe) {
+          const header = document.createElement('div');
+          header.className = 'group-msg-sender-header';
+          header.innerHTML = `<span class="group-msg-sender-name">${escapeHtml(senderName)}</span>`;
+          bodyWrap.appendChild(header);
+        }
 
         const bubble = document.createElement('div');
         bubble.className = 'dm-bubble';
         bubble.innerHTML = `
-          ${!isMe ? `<div class="dm-bubble-sender">${escapeHtml(m.senderUsername || 'חבר קבוצה')}</div>` : ''}
           <div>${escapeHtml(m.text)}</div>
-          <div class="msg-bottom-meta" style="color: ${isMe ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.5)'}; font-size: 0.7rem; margin-top: 3px;">${formatMsgDate(m.createdAt)}</div>
+          <div class="msg-bottom-meta" style="color: ${isMe ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.5)'}; font-size: 0.7rem; margin-top: 3px;">${formatMsgDate(m.createdAt || m.timestamp)}</div>
         `;
-        row.appendChild(bubble);
+        bodyWrap.appendChild(bubble);
+
+        if (avatarElHtml) {
+          const avWrap = document.createElement('div');
+          avWrap.innerHTML = avatarElHtml;
+          row.appendChild(avWrap.firstElementChild);
+        }
+        row.appendChild(bodyWrap);
         groupMessagesFeed.appendChild(row);
       });
 
@@ -870,7 +890,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     btnVerifyStips.disabled = true;
-    btnVerifyStips.textContent = 'בודק בקיר של נאצ...';
+    btnVerifyStips.textContent = 'בודק בקיר בסטיפס...';
     setLoginStatus('בודק את הקיר בסטיפס...', '');
 
     try {
@@ -905,6 +925,71 @@ document.addEventListener('DOMContentLoaded', function () {
       btnVerifyStips.textContent = 'שלחתי — אמת אותי!';
     }
   });
+
+  // ─── כניסת מנהל (ADMIN) לנאצ ───
+  const btnToggleAdminBox = document.getElementById('btn-toggle-admin-box');
+  const adminBoxWrap = document.getElementById('admin-box-wrap');
+  const adminPassInput = document.getElementById('admin-pass-input');
+  const btnAdminLogin = document.getElementById('btn-admin-login');
+
+  if (btnToggleAdminBox && adminBoxWrap) {
+    btnToggleAdminBox.addEventListener('click', function () {
+      const isVisible = adminBoxWrap.style.display !== 'none';
+      adminBoxWrap.style.display = isVisible ? 'none' : 'block';
+      if (!isVisible && adminPassInput) adminPassInput.focus();
+    });
+  }
+
+  if (btnAdminLogin && adminPassInput) {
+    btnAdminLogin.addEventListener('click', async function () {
+      const code = (adminPassInput.value || '').trim();
+      if (!code) {
+        setLoginStatus('נא להזין קוד מנהל', 'error');
+        return;
+      }
+
+      btnAdminLogin.disabled = true;
+      btnAdminLogin.textContent = 'מתחבר...';
+      setLoginStatus('מאמת הרשאות מנהל...', '');
+
+      try {
+        const res = await fetch('/api/admin-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ adminCode: code })
+        });
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || 'קוד מנהל שגוי');
+        }
+
+        sessionToken = data.sessionToken;
+        currentUser = data.user;
+
+        saveSession(sessionToken, currentUser);
+        updateHeaderUI();
+        setLoginStatus('התחברת בהצלחה כמנהל!', 'success');
+
+        setTimeout(() => {
+          showChatView();
+          chatInput.focus();
+        }, 400);
+      } catch (err) {
+        setLoginStatus('שגיאה: ' + err.message, 'error');
+      } finally {
+        btnAdminLogin.disabled = false;
+        btnAdminLogin.textContent = 'התחבר כמנהל';
+      }
+    });
+
+    adminPassInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        btnAdminLogin.click();
+      }
+    });
+  }
 
   // ─── בדיקת סשן שקטה ברקע ───
   async function verifySessionQuietly() {

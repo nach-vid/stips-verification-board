@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>סטיפס</title>
 
-  <!-- Google Font: Rubik -->
+  <!-- Google Font: Cousine (הפונט הקלאסי המקורי) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Rubik:ital,wght@0,300..900;1,300..900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cousine:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
 
   <style>
     * {
@@ -22,7 +22,7 @@
       width: 100%;
       height: 100%;
       background-color: #000000;
-      font-family: 'Rubik', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-family: 'Cousine', monospace, -apple-system, sans-serif;
       direction: rtl;
       overflow: hidden;
     }
@@ -54,43 +54,41 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 12px;
+      position: relative;
+      padding: 0 10px;
       flex-shrink: 0;
       z-index: 10;
     }
 
     .top-sword-img {
-      max-height: 24px;
+      max-height: 26px;
       width: auto;
-      max-width: 58%;
+      max-width: 65%;
       object-fit: contain;
-      cursor: pointer;
+      display: block;
       filter: drop-shadow(0 0 6px rgba(220, 50, 50, 0.35));
+      cursor: pointer;
     }
 
     .header-nav-btn {
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: #202428;
+      border: 1px solid rgba(255, 255, 255, 0.15);
       border-radius: 6px;
-      color: #e2e8f0;
-      font-size: 0.8rem;
-      font-weight: 500;
-      padding: 5px 9px;
+      color: #cbd5e1;
+      font-size: 0.76rem;
+      padding: 4px 8px;
       cursor: pointer;
-      font-family: 'Rubik', sans-serif;
+      font-family: 'Cousine', monospace;
       display: flex;
       align-items: center;
       gap: 4px;
-      transition: background 0.15s ease;
+      transition: all 0.15s ease;
+      white-space: nowrap;
     }
     .header-nav-btn:hover {
-      background: rgba(255, 255, 255, 0.18);
-    }
-
-    .header-left-actions {
-      display: flex;
-      align-items: center;
-      gap: 6px;
+      background: #2b3036;
+      color: #ffffff;
+      border-color: rgba(255, 255, 255, 0.3);
     }
 
     .subtle-logout-btn {
@@ -101,7 +99,7 @@
       font-size: 0.72rem;
       padding: 4px 7px;
       cursor: pointer;
-      font-family: 'Rubik', sans-serif;
+      font-family: 'Cousine', monospace;
       display: none;
     }
     .subtle-logout-btn:hover {
@@ -109,7 +107,7 @@
       border-color: #ff5252;
     }
 
-    /* ─── כרטיס הודעה בצ'אט הכללי ─── */
+    /* ─── כרטיס הודעה בצ'אט הכללי - העיצוב המקורי של פעם ─── */
     .msg-card {
       background: linear-gradient(180deg, #87949e 0%, #636f78 100%);
       border: 1px solid rgba(0, 0, 0, 0.25);
@@ -123,7 +121,7 @@
       width: 100%;
       flex-shrink: 0;
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
-      font-family: 'Rubik', sans-serif;
+      font-family: 'Cousine', monospace;
     }
 
     .msg-author-side {
@@ -137,7 +135,6 @@
       text-decoration: underline;
     }
 
-    /* אווטאר */
     .msg-avatar {
       width: 30px;
       height: 30px;
@@ -150,10 +147,24 @@
       position: relative;
     }
 
-    /* ─── OUTLINE עגול סביב משתמשים שמחוברים לאתר כרגע (Online) ─── */
+    /* OUTLINE עגול סביב משתמשים שמחוברים לאתר כרגע */
     .msg-avatar.online-now {
       border: 2px solid #22c55e !important;
       box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.35), 0 0 8px rgba(34, 197, 94, 0.5) !important;
+    }
+
+    .msg-avatar-placeholder {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background-color: #4b5563;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.82rem;
+      font-weight: 700;
+      flex-shrink: 0;
     }
 
     .msg-author {
@@ -183,7 +194,6 @@
       background-color: #17181a;
     }
 
-    /* גלילת הודעות */
     .messages-scroll-area {
       flex: 1;
       overflow-y: auto;
@@ -200,7 +210,7 @@
       font-size: 0.88rem;
       margin: auto;
       padding: 40px 10px;
-      font-family: 'Rubik', sans-serif;
+      font-family: 'Cousine', monospace;
     }
 
     /* ─── סרגל שליחה תחתון (Sendbox) ─── */
@@ -238,7 +248,7 @@
       color: #ffffff;
       font-size: 0.95rem;
       direction: rtl;
-      font-family: 'Rubik', sans-serif;
+      font-family: 'Cousine', monospace;
     }
 
     .bottom-input-box input::placeholder {
@@ -271,31 +281,36 @@
       transform: scale(0.9);
     }
 
-    /* ─── סרגל עליון פנימי לצ'אט פרטי / קבוצתי ─── */
+    /* ─── סרגל עליון פנימי למסכי צ'אט פרטי / קבוצה ─── */
     .chat-sub-header {
-      padding: 10px 14px;
-      background-color: #1f2226;
+      width: 100%;
+      height: 48px;
+      background-color: #1c1f23;
       border-bottom: 1px solid rgba(255, 255, 255, 0.08);
       display: flex;
       align-items: center;
       justify-content: space-between;
+      padding: 0 12px;
       flex-shrink: 0;
     }
 
     .chat-sub-title {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
     }
 
     .chat-sub-title .sub-name {
       color: #ffffff;
       font-weight: 700;
-      font-size: 0.98rem;
+      font-size: 0.95rem;
     }
 
     .chat-sub-title .sub-badge {
       font-size: 0.72rem;
+      color: #94a3b8;
+    }
+    .chat-sub-title .sub-badge.online {
       color: #22c55e;
       background: rgba(34, 197, 94, 0.15);
       padding: 2px 6px;
@@ -307,32 +322,93 @@
       border: none;
       color: #94a3b8;
       font-size: 0.88rem;
-      font-family: 'Rubik', sans-serif;
+      font-family: 'Cousine', monospace;
       cursor: pointer;
     }
     .btn-chat-back:hover {
       color: #ffffff;
     }
 
-    /* בועות הודעות לצ'אט פרטי / קבוצה */
+    .btn-copy-group-link {
+      background: #2b3036;
+      border: 1px solid #47525e;
+      border-radius: 4px;
+      color: #cbd5e1;
+      font-size: 0.75rem;
+      padding: 3px 7px;
+      cursor: pointer;
+      font-family: 'Cousine', monospace;
+    }
+    .btn-copy-group-link:hover {
+      background: #374151;
+      color: #ffffff;
+    }
+
+    /* ─── בועות הודעות לצ'אט פרטי וקבוצתי (עם שם ותמונת פרופיל!) ─── */
     .dm-bubble-row {
       display: flex;
       flex-direction: row;
       gap: 8px;
       align-items: flex-end;
       width: 100%;
+      margin-bottom: 2px;
     }
     .dm-bubble-row.me {
       flex-direction: row-reverse;
     }
 
-    .dm-bubble {
+    .bubble-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: #334155;
+      flex-shrink: 0;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .bubble-avatar-placeholder {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #475569;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .dm-bubble-body-wrap {
+      display: flex;
+      flex-direction: column;
       max-width: 78%;
+    }
+    .dm-bubble-row.me .dm-bubble-body-wrap {
+      align-items: flex-start;
+    }
+
+    .group-msg-sender-header {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-bottom: 3px;
+      padding: 0 4px;
+    }
+    .group-msg-sender-name {
+      font-size: 0.76rem;
+      font-weight: 700;
+      color: #cbd5e1;
+    }
+
+    .dm-bubble {
       padding: 9px 13px;
       border-radius: 8px;
       font-size: 0.92rem;
       line-height: 1.4;
       word-break: break-word;
+      font-family: 'Cousine', monospace;
     }
     .dm-bubble-row.other .dm-bubble {
       background: linear-gradient(180deg, #7c8994 0%, #5d676f 100%);
@@ -343,12 +419,6 @@
       background: linear-gradient(180deg, #d82b2b 0%, #a81c1c 100%);
       color: #ffffff;
       border-bottom-left-radius: 2px;
-    }
-    .dm-bubble-sender {
-      font-size: 0.75rem;
-      font-weight: 700;
-      margin-bottom: 2px;
-      color: #222222;
     }
 
     /* ─── דף אנשי קשר וקבוצות (Contacts View) ─── */
@@ -384,7 +454,7 @@
       padding: 4px 10px;
       font-size: 0.78rem;
       font-weight: 600;
-      font-family: 'Rubik', sans-serif;
+      font-family: 'Cousine', monospace;
       cursor: pointer;
     }
     .btn-create-group:hover {
@@ -398,7 +468,7 @@
       padding: 10px 12px;
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      gap: 10px;
       margin-bottom: 8px;
       cursor: pointer;
       transition: background 0.15s ease, border-color 0.15s ease;
@@ -408,63 +478,45 @@
       border-color: rgba(255, 255, 255, 0.15);
     }
 
-    .contact-left-info {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .contact-avatar {
+    .contact-avatar-wrap {
       width: 36px;
       height: 36px;
       border-radius: 50%;
-      background: #ffffff;
-      object-fit: cover;
+      background: #374151;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      position: relative;
     }
-    .contact-avatar.online-now {
+    .contact-avatar-wrap.online-now {
       border: 2px solid #22c55e !important;
       box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.35) !important;
     }
+    .contact-avatar-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
 
-    .contact-name-wrap .contact-name {
+    .contact-details {
+      flex: 1;
+      overflow: hidden;
+    }
+    .contact-details .contact-name {
       color: #ffffff;
       font-weight: 700;
       font-size: 0.95rem;
-      display: block;
-    }
-    .contact-name-wrap .contact-last-msg {
-      color: #8f9ba6;
-      font-size: 0.78rem;
       white-space: nowrap;
-      max-width: 190px;
       overflow: hidden;
       text-overflow: ellipsis;
-      display: block;
+    }
+    .contact-details .contact-sub {
+      color: #8f9ba6;
+      font-size: 0.76rem;
       margin-top: 2px;
-    }
-
-    .contact-status-badge {
-      font-size: 0.72rem;
-      color: #64748b;
-    }
-    .contact-status-badge.is-online {
-      color: #22c55e;
-      font-weight: 600;
-    }
-
-    /* שיתוף קישור לקבוצה */
-    .btn-copy-group-link {
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 4px;
-      color: #cbd5e1;
-      padding: 3px 8px;
-      font-size: 0.72rem;
-      cursor: pointer;
-      font-family: 'Rubik', sans-serif;
-    }
-    .btn-copy-group-link:hover {
-      background: rgba(255, 255, 255, 0.18);
     }
 
     /* ─── מודאל יצירת קבוצה ─── */
@@ -490,6 +542,7 @@
       width: 100%;
       max-width: 360px;
       box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+      font-family: 'Cousine', monospace;
     }
     .modal-box h3 {
       color: #ffffff;
@@ -503,7 +556,7 @@
       border: 1px solid #47525e;
       border-radius: 6px;
       color: #ffffff;
-      font-family: 'Rubik', sans-serif;
+      font-family: 'Cousine', monospace;
       margin-bottom: 14px;
       outline: none;
     }
@@ -519,45 +572,55 @@
       padding: 6px;
       margin-bottom: 14px;
     }
-    .member-select-row {
+    .member-check-item {
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 6px;
+      padding: 6px 8px;
       color: #e2e8f0;
       font-size: 0.85rem;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    .member-check-item:hover {
+      background: #252a30;
     }
 
     .modal-actions {
       display: flex;
-      gap: 8px;
       justify-content: flex-end;
+      gap: 8px;
     }
     .btn-modal-cancel {
       background: transparent;
       border: 1px solid #47525e;
-      border-radius: 6px;
-      color: #94a3b8;
+      color: #cbd5e1;
       padding: 8px 14px;
+      border-radius: 6px;
       cursor: pointer;
-      font-family: 'Rubik', sans-serif;
+      font-family: 'Cousine', monospace;
     }
     .btn-modal-confirm {
       background: #b71c1c;
       border: none;
-      border-radius: 6px;
       color: #ffffff;
-      padding: 8px 16px;
+      padding: 8px 14px;
+      border-radius: 6px;
       font-weight: 700;
       cursor: pointer;
-      font-family: 'Rubik', sans-serif;
+      font-family: 'Cousine', monospace;
     }
 
     /* ─── מסך חיבור לסטיפס ─── */
     #login-screen {
+      flex: 1;
       display: none;
+      flex-direction: column;
+      height: calc(100vh - 56px);
+      background-color: #17181a;
       padding: 20px 16px;
       overflow-y: auto;
+      font-family: 'Cousine', monospace;
     }
 
     .login-clean-card {
@@ -569,6 +632,7 @@
       border-radius: 8px;
       padding: 22px 18px;
     }
+
     .login-clean-card h2 {
       color: #ffffff;
       font-size: 1.15rem;
@@ -576,28 +640,7 @@
       margin-bottom: 16px;
       text-align: center;
     }
-    .simple-label {
-      color: #a0aab2;
-      font-size: 0.85rem;
-      display: block;
-      margin-bottom: 8px;
-    }
-    .clean-input {
-      width: 100%;
-      padding: 12px;
-      background-color: #2b3036;
-      border: 1px solid #444c54;
-      border-radius: 6px;
-      color: #ffffff;
-      font-size: 1rem;
-      direction: ltr;
-      outline: none;
-      margin-bottom: 14px;
-      font-family: 'Rubik', sans-serif;
-    }
-    .clean-input:focus {
-      border-color: #d82b2b;
-    }
+
     .btn-action-red {
       width: 100%;
       padding: 12px;
@@ -608,7 +651,7 @@
       font-size: 0.95rem;
       font-weight: 700;
       cursor: pointer;
-      font-family: 'Rubik', sans-serif;
+      font-family: 'Cousine', monospace;
       transition: background-color 0.15s ease;
     }
     .btn-action-red:hover:not(:disabled) {
@@ -629,10 +672,10 @@
       cursor: pointer;
     }
     .big-code-box .code-val {
-      font-size: 1.6rem;
+      font-size: 1.45rem;
       font-weight: 700;
       color: #ffffff;
-      direction: rtl;
+      direction: ltr;
       display: block;
       margin-bottom: 4px;
     }
@@ -676,7 +719,7 @@
       margin-top: 14px;
       cursor: pointer;
       width: 100%;
-      font-family: 'Rubik', sans-serif;
+      font-family: 'Cousine', monospace;
     }
     .login-status-msg {
       margin-top: 10px;
@@ -686,6 +729,58 @@
     }
     .login-status-msg.error { color: #ff5252; }
     .login-status-msg.success { color: #4caf50; }
+
+    /* כניסת אדמין לנאצ */
+    .admin-login-divider {
+      margin-top: 20px;
+      padding-top: 14px;
+      border-top: 1px dashed #333a42;
+      text-align: center;
+    }
+    .btn-toggle-admin {
+      background: none;
+      border: none;
+      color: #64748b;
+      font-size: 0.75rem;
+      cursor: pointer;
+      font-family: 'Cousine', monospace;
+    }
+    .btn-toggle-admin:hover {
+      color: #94a3b8;
+    }
+    .admin-box {
+      margin-top: 10px;
+      display: flex;
+      gap: 6px;
+    }
+    .admin-input {
+      flex: 1;
+      padding: 8px 10px;
+      background: #17181a;
+      border: 1px solid #3f4752;
+      border-radius: 4px;
+      color: #ffffff;
+      font-size: 0.85rem;
+      font-family: 'Cousine', monospace;
+      outline: none;
+    }
+    .admin-input:focus {
+      border-color: #e11d48;
+    }
+    .btn-admin-submit {
+      background: #334155;
+      color: #ffffff;
+      border: none;
+      border-radius: 4px;
+      padding: 8px 12px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: 'Cousine', monospace;
+    }
+    .btn-admin-submit:hover {
+      background: #475569;
+    }
 
     @media (max-width: 480px) {
       body {
@@ -820,9 +915,9 @@
         <!-- שלב 1: קבל קוד -->
         <div id="step-get-code">
           <p class="step-instruction" style="margin-bottom: 16px;">
-            לחץ כדי לקבל קוד חד פעמי, שלח אותו בקיר של נאצ ב-סטיפס, ואמת!
+            לחץ לקבלת קוד אימות חד פעמי, שלח אותו בקיר בסטיפס, והתחבר מיד!
           </p>
-          <button type="button" id="btn-submit-id" class="btn-action-red">קבל קוד</button>
+          <button type="button" id="btn-submit-id" class="btn-action-red">קבל קוד אימות</button>
         </div>
 
         <!-- שלב 2: הצגת הקוד ואימות -->
@@ -833,15 +928,26 @@
           </div>
 
           <div class="step-instruction">
-            שלח את הקוד הזה בקיר של נאצ בסטיפס:
+            שלח את הקוד בהודעה בקיר בסטיפס:
           </div>
 
           <a id="profile-direct-link" class="btn-open-stips" href="https://stips.co.il/profile/428498" target="_blank" rel="noopener">
-            🔗 פתח את הקיר של נאצ
+            🔗 פתח את הקיר בסטיפס לשליחה
           </a>
 
           <button type="button" id="btn-verify-stips" class="btn-action-red">שלחתי — אמת אותי!</button>
           <button type="button" id="btn-get-new-code" class="btn-back-chat" style="margin-top: 6px;">← קבל קוד חדש</button>
+        </div>
+
+        <!-- כניסת מנהל (ADMIN) לנאצ -->
+        <div class="admin-login-divider">
+          <button type="button" id="btn-toggle-admin-box" class="btn-toggle-admin">כניסת מנהל (Admin)</button>
+          <div id="admin-box-wrap" style="display: none;">
+            <div class="admin-box">
+              <input type="password" id="admin-pass-input" class="admin-input" placeholder="קוד מנהל מיוחד..." autocomplete="off">
+              <button type="button" id="btn-admin-login" class="btn-admin-submit">התחבר כמנהל</button>
+            </div>
+          </div>
         </div>
 
         <button type="button" id="btn-back-to-chat" class="btn-back-chat">← חזרה לצ'אט</button>
